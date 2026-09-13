@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGVI - Panel Principal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css"> 
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Navegación Lateral (Sidebar) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>SGVI</h2>
+                <p id="user-info">Operario - Depósito Centro</p>
+            </div>
+            <nav class="sidebar-nav">
+                <!-- Vista General: Dashboard y Lista -->
+                <button class="nav-btn active" data-target="vista-monitor">Dashboard</button>
+                <!-- Vista de la Bitácora / Historial -->
+                <button class="nav-btn" data-target="vista-historial">Historial de Transacciones</button>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
+            </div>
+        </aside>
+
+        <!-- Área de Contenido Principal -->
+        <main class="main-content">
+            
+            <!-- VISTA 1: Dashboard (Monitor, Acciones y Lista de Vehículos) -->
+            <section id="vista-monitor" class="view-section active">
+                <div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h2>Monitor de Capacidad</h2>
+                    <div class="quick-actions" style="display: flex; gap: 10px;">
+                        <button id="btn-open-ingreso" class="btn-primary">Ingresar Vehículo</button>
+                        <button id="btn-open-retiro" class="btn-primary">Retirar Vehículo</button>
+                        <button id="btn-open-exportar" class="btn-secondary">Exportar Remates</button>
+                    </div>
+                </div>
+                
+                <div class="stats-container">
+                    <div class="stat-card"><h3>Lugares Totales</h3><p>150</p></div>
+                    <div class="stat-card"><h3>Ocupados</h3><p>120</p></div>
+                    <div class="stat-card"><h3>Libres</h3><p>30</p></div>
+                </div>
+
+                <!-- Buscador y Tabla de Vehículos Activos -->
+                <div class="table-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3>Vehículos en Depósito</h3>
+                        <input type="text" placeholder="Buscar patente o modelo..." style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Patente</th>
+                                <th>Marca y Modelo</th>
+                                <th>Fecha Ingreso</th>
+                                <th>Estado Actual</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Fila de ejemplo -->
+                            <tr>
+                                <td><strong>AB123CD</strong></td>
+                                <td>Ford Fiesta</td>
+                                <td>06/09/2026</td>
+                                <td>
+                                    <!-- Selector para cambiar estado rápido -->
+                                    <select class="status-selector">
+                                        <option value="activo" selected>Activo en Depósito</option>
+                                        <option value="remate">Enviado a Remate</option>
+                                        <option value="venta">Baja por Venta</option>
+                                    </select>
+                                </td>
+                                <td><button class="btn-secondary" style="padding: 6px 10px; font-size: 13px;">Ver Detalle</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VISTA 2: Historial de Transacciones (RF04) -->
+            <section id="vista-historial" class="view-section hidden">
+                <h2>Historial de Transacciones</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Bitácora cronológica de movimientos del depósito actual.</p>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Patente</th>
+                                <th>Evento</th>
+                                <th>Usuario</th>
+                                <th>Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Filas de ejemplo -->
+                            <tr>
+                                <td>06/09/2026 14:30</td>
+                                <td><strong>AB123CD</strong></td>
+                                <td><span style="color: #27ae60; font-weight: bold;">Ingreso de Vehículo</span></td>
+                                <td>Operario_01</td>
+                                <td>Incautación por alcoholemia.</td>
+                            </tr>
+                            <tr>
+                                <td>05/09/2026 10:15</td>
+                                <td><strong>XYZ987</strong></td>
+                                <td><span style="color: #e74c3c; font-weight: bold;">Baja por Retiro</span></td>
+                                <td>Operario_02</td>
+                                <td>Retirado por titular. Pago de infracción confirmado.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL: Ingreso de Vehículo -->
+    <div id="modal-ingreso" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn">&times;</button>
+            <h2>Registrar Ingreso de Vehículo</h2>
+            <form id="form-ingreso">
+                <div class="input-group"><label>Patente</label><input type="text" required></div>
+                <div class="input-group"><label>Marca</label><input type="text" required></div>
+                <div class="input-group"><label>Modelo</label><input type="text" required></div>
+                <div class="input-group"><label>Descripción de daños o estado físico</label><textarea required></textarea></div>
+                <div class="input-group"><label>Motivo de la incautación</label><input type="text" required></div>
+                <div class="input-group"><label>Fecha de ingreso</label><input type="date" required></div>
+                <div class="input-group"><label>Fotografías (Máx 5)</label><input type="file" multiple accept="image/*"></div>
+                <button type="submit" class="btn-primary">Confirmar Ingreso</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Retiro de Vehículo -->
+    <div id="modal-retiro" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn">&times;</button>
+            <h2>Registrar Retiro de Vehículo</h2>
+            <div class="input-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" placeholder="Patente del vehículo...">
+                <button class="btn-secondary" style="width: auto;">Verificar</button>
+            </div>
+            <form id="form-retiro">
+                <div class="input-group"><label>Nombre del retirante</label><input type="text" required></div>
+                <div class="input-group"><label>DNI</label><input type="text" required></div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="es-titular">
+                    <label for="es-titular">¿Es el titular del vehículo?</label>
+                </div>
+                <div class="input-group"><label>Resolución de la infracción</label><input type="text" required></div>
+                <button type="submit" class="btn-primary">Confirmar Retiro</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Exportar CSV -->
+    <div id="modal-exportar" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn">&times;</button>
+            <h2>Exportar Listado de Remates</h2>
+            <form id="form-exportar">
+                <div class="input-group">
+                    <label>Filtrar por Depósito</label>
+                    <select><option>Todos los depósitos</option></select>
+                </div>
+                <button type="submit" class="btn-primary">Generar y Descargar CSV</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

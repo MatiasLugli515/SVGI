@@ -1,0 +1,23 @@
+# Dependencias de Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Variables de entorno y secretos
+.env
+.env.test
+
+# Archivos subidos por los operarios (Fotografías de vehículos)
+public/uploads/
+uploads/
+
+# Archivos temporales generados por el sistema (Reportes CSV)
+data/*.csv
+
+# Archivos del sistema operativo (Windows/Mac)
+Thumbs.db
+.DS_Store
+
+# Logs
+logs
+*.log

@@ -1,0 +1,128 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f4f6f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-container {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.login-header h1 {
+    color: #2c3e50;
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+
+.login-header p {
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #34495e;
+    font-weight: 500;
+}
+
+.input-group input, 
+.input-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.input-group input:focus, 
+.input-group select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 12px;
+    background-color: #2980b9;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #2471a3;
+}
+
+.hidden {
+    display: none;
+}
+
+.success-message {
+    color: #27ae60;
+    text-align: center;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.btn-secondary {
+    padding: 12px 15px;
+    background-color: #7f8c8d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #636e72;
+}
+
+/* Solución específica para los checkboxes */
+.input-group input[type="checkbox"] {
+    width: auto; /* Evita que el checkbox ocupe el 100% de la pantalla */
+    transform: scale(1.2); /* Lo hace apenitas más grande para que se vea mejor */
+    cursor: pointer;
+}
+
+/* Contenedor específico para alinear checkboxes con sus textos */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px; /* Distancia corta y controlada entre la caja y el texto */
+    margin-bottom: 20px;
+}
+
+.checkbox-group label {
+    margin-bottom: 0; /* Evita el margen que tienen los labels por defecto */
+    cursor: pointer;
+}

@@ -1,0 +1,54 @@
+-- 1. Tabla Usuarios[cite: 8]
+CREATE TABLE Usuarios (
+    ID_Usuario INT IDENTITY(1,1) PRIMARY KEY,
+    Nombre VARCHAR(100) NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    Password_Hash VARCHAR(255) NOT NULL,
+    Rol VARCHAR(50) NOT NULL
+);
+
+-- 2. Tabla Depositos[cite: 8]
+CREATE TABLE Depositos (
+    ID_Deposito INT IDENTITY(1,1) PRIMARY KEY,
+    Nombre VARCHAR(100) NOT NULL,
+    Capacidad_Maxima INT NOT NULL,
+    Direccion VARCHAR(255) NOT NULL
+);
+
+-- 3. Tabla Vehiculos[cite: 8]
+CREATE TABLE Vehiculos (
+    ID_Vehiculo INT IDENTITY(1,1) PRIMARY KEY,
+    Patente VARCHAR(20) UNIQUE NOT NULL,
+    Marca VARCHAR(50) NOT NULL,
+    Modelo VARCHAR(50) NOT NULL,
+    Nombre_Titular VARCHAR(100),
+    DNI_Titular VARCHAR(20),
+    Descripcion_Danos TEXT NOT NULL,
+    Motivo_Incautacion VARCHAR(255) NOT NULL,
+    Fecha_Ingreso DATETIME NOT NULL,
+    Estado_Actual VARCHAR(50) NOT NULL,
+    ID_Deposito INT NOT NULL,
+    FOREIGN KEY (ID_Deposito) REFERENCES Depositos(ID_Deposito)
+);
+
+-- 4. Tabla Fotos_Vehiculo[cite: 8]
+CREATE TABLE Fotos_Vehiculo (
+    ID_Foto INT IDENTITY(1,1) PRIMARY KEY,
+    ID_Vehiculo INT NOT NULL,
+    Ruta_Archivo VARCHAR(255) NOT NULL,
+    FOREIGN KEY (ID_Vehiculo) REFERENCES Vehiculos(ID_Vehiculo)
+);
+
+-- 5. Tabla Historial_Vehiculo[cite: 8]
+CREATE TABLE Historial_Vehiculo (
+    ID_Registro INT IDENTITY(1,1) PRIMARY KEY,
+    ID_Vehiculo INT NOT NULL,
+    ID_Usuario INT NOT NULL,
+    ID_Deposito INT NOT NULL,
+    Fecha_Transaccion DATETIME NOT NULL,
+    Evento VARCHAR(100) NOT NULL,
+    Detalle_Extra TEXT,
+    FOREIGN KEY (ID_Vehiculo) REFERENCES Vehiculos(ID_Vehiculo),
+    FOREIGN KEY (ID_Usuario) REFERENCES Usuarios(ID_Usuario),
+    FOREIGN KEY (ID_Deposito) REFERENCES Depositos(ID_Deposito)
+);
