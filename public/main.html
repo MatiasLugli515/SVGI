@@ -20,6 +20,8 @@
                 <button class="nav-btn active" data-target="vista-monitor">Dashboard</button>
                 <!-- Vista de la Bitácora / Historial -->
                 <button class="nav-btn" data-target="vista-historial">Historial de Transacciones</button>
+
+                <button class="nav-btn" data-target="vista-admin-usuarios">Administración</button>
             </nav>
             <div class="sidebar-footer">
                 <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
@@ -121,6 +123,44 @@
                 </div>
             </section>
 
+            <section id="vista-admin-usuarios" class="view-section hidden">
+                <div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2>Administración</h2>
+                <div class="quick-actions">
+                    <button id="btn-open-deposito" class="btn-primary">Añadir Depósito</button>
+                </div>
+            </div>
+            <p style="color: #7f8c8d; margin-bottom: 20px;">Administración de cuentas de operarios y gestión de depósitos.</p>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Fila de ejemplo -->
+                            <tr>
+                                <td><strong>Juan Pérez</strong></td>
+                                <td>operario@municipio.gob.ar</td>
+                                <td>
+                                    <!-- Selector para modificar el rol directamente en la tabla -->
+                                    <select class="status-selector">
+                                        <option value="operario" selected>Operario</option>
+                                        <option value="administrador">Administrador</option>
+                                    </select>
+                                </td>
+                                <td><button class="btn-secondary" style="padding: 6px 10px; font-size: 13px; background-color: #e74c3c;">Eliminar</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
         </main>
     </div>
 
@@ -179,6 +219,28 @@
         </div>
     </div>
 
+    <!-- MODAL: Añadir Depósito -->
+    <div id="modal-deposito" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn">&times;</button>
+            <h2>Registrar Nuevo Depósito</h2>
+            <form id="form-deposito-nuevo">
+                <div class="input-group">
+                    <label>Nombre del Depósito</label>
+                    <input type="text" id="dep-nombre" required placeholder="Ej: Depósito Norte">
+                </div>
+                <div class="input-group">
+                    <label>Capacidad Máxima (lugares)</label>
+                    <input type="number" id="dep-capacidad" required min="1" placeholder="Ej: 200">
+                </div>
+                <div class="input-group">
+                    <label>Dirección</label>
+                    <input type="text" id="dep-direccion" required placeholder="Ej: Av. San Martín 456">
+                </div>
+                <button type="submit" class="btn-primary">Guardar Depósito</button>
+            </form>
+        </div>
+    </div>
     <script src="js/main.js"></script>
 </body>
 </html>

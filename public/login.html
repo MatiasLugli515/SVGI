@@ -13,6 +13,7 @@
             <p>Sistema de Gestión de Vehículos Incautados</p>
         </div>
 
+        <!-- FORMULARIO 1: Iniciar Sesión -->
         <form id="form-credenciales">
             <div class="input-group">
                 <label for="email">Correo Electrónico</label>
@@ -23,15 +24,45 @@
                 <input type="password" id="password" required placeholder="********">
             </div>
             <button type="submit" class="btn-primary">Iniciar Sesión</button>
+            
+            <!-- Botón para ir al registro -->
+            <div style="text-align: center; margin-top: 15px;">
+                <button type="button" id="btn-mostrar-registro" style="background: none; border: none; color: #2980b9; cursor: pointer; font-size: 14px; text-decoration: underline;">¿No tenés cuenta? Registrate acá</button>
+            </div>
         </form>
 
+        <!-- FORMULARIO 2: Registro (Oculto por defecto) -->
+        <form id="form-registro" class="hidden">
+            <h3 style="text-align: center; margin-bottom: 20px; color: #2c3e50;">Registro de Nueva Cuenta</h3>
+            
+            <div class="input-group">
+                <label>Nombre Completo</label>
+                <input type="text" id="reg-nombre" required placeholder="Juan Pérez">
+            </div>
+            <div class="input-group">
+                <label>Correo Electrónico</label>
+                <input type="email" id="reg-email" required placeholder="juan@municipio.gob.ar">
+            </div>
+            <div class="input-group">
+                <label>Contraseña</label>
+                <input type="password" id="reg-password" required>
+            </div>
+            
+            <button type="submit" class="btn-primary">Crear Cuenta</button>
+            
+            <div style="text-align: center; margin-top: 15px;">
+                <button type="button" id="btn-volver-login" style="background: none; border: none; color: #7f8c8d; cursor: pointer; font-size: 14px; text-decoration: underline;">Volver al inicio de sesión</button>
+            </div>
+        </form>
+
+        <!-- FORMULARIO 3: Selección de Depósito (Oculto por defecto) -->
         <form id="form-deposito" class="hidden">
             <p class="success-message">¡Autenticación exitosa!</p>
             <div class="input-group">
                 <label for="deposito">Seleccione su lugar de trabajo:</label>
                 <select id="deposito" required>
                     <option value="" disabled selected>Cargando depósitos...</option>
-                    <option value="" disabled selected>Deposito 1</option>   //eliminar cuando se conecte con la API
+                    <option value="1">Depósito Centro</option>
                 </select>
             </div>
             <button type="submit" class="btn-primary">Ingresar al Sistema</button>
