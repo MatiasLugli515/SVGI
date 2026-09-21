@@ -135,6 +135,64 @@ app.get('/api/usuarios', async (req, res) => {
         res.status(500).json({ message: 'Error interno al cargar la lista de usuarios.' });
     }
 });
+
+app.put('/api/usuarios/:id/rol', async (req, res) => {
+    const userId = req.params.id;
+    const { nuevoRol } = req.body;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        if (nuevoRol !== 'administrador') {
+            const checkAdmins = await pool.request()
+                .query("SELECT COUNT(*) AS total FROM Usuarios WHERE Rol = 'administrador'");
+            
+            if (checkAdmins.recordset[0].total <= 1) {
+                const userActual = await pool.request()
+                    .input('id', sql.Int, userId)
+                    .query("SELECT Rol FROM Usuarios WHERE ID_Usuario = @id");
+
+                if (userActual.recordset[0].Rol === 'administrador') {
+                    return res.status(400).json({ message: 'Operación denegada. El sistema no puede quedarse sin administradores.' });
+                }
+            }
+        }
+
+        await pool.request()
+            .input('rol', sql.VarChar, nuevoRol)
+            .input('id', sql.Int, userId)
+            .query('UPDATE Usuarios SET Rol = @rol WHERE ID_Usuario = @id');
+
+        res.status(200).json({ message: 'Rol actualizado correctamente.' });
+    } catch (err) {
+        console.error('Error al cambiar rol:', err);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+app.delete('/api/usuarios/:id', async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+
+        const user = await pool.request()
+            .input('id', sql.Int, userId)
+            .query('SELECT Rol FROM Usuarios WHERE ID_Usuario = @id');
+
+        if (user.recordset.length === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+        
+        await pool.request()
+            .input('id', sql.Int, userId)
+            .query('DELETE FROM Usuarios WHERE ID_Usuario = @id');
+
+        res.status(200).json({ message: 'Usuario eliminado del sistema.' });
+    } catch (err) {
+        console.error('Error al eliminar usuario:', err);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
 // Rutas de las vistas
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/login.html'));

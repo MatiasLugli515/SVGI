@@ -179,18 +179,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         return `<option value="${rol}" ${seleccionado}>${nombreMostrar}</option>`;
                     }).join('');
 
+                    const botonEliminarHTML = user.Rol === 'administrador'
+                        ? '<span style="color: #7f8c8d; font-size: 13px;">No eliminable</span>'
+                        : `<button class="btn-secondary btn-eliminar-usuario" data-id="${user.ID_Usuario}" style="padding: 6px 10px; font-size: 13px; background-color: #e74c3c;">Eliminar</button>`;
+
                     tr.innerHTML = `
-                            <td><strong>${user.Nombre}</strong></td>
-                            <td>${user.Email}</td>
-                            <td>
-                                <select class="status-selector" data-id="${user.ID_Usuario}">
-                                    ${opcionesHTML}
-                                </select>
-                            </td>
-                            <td>
-                                <button class="btn-secondary" style="padding: 6px 10px; font-size: 13px; background-color: #e74c3c;">Eliminar</button>
-                            </td>
-                        `;
+                        <td><strong>${user.Nombre}</strong></td>
+                        <td>${user.Email}</td>
+                        <td>
+                            <select class="status-selector select-rol" data-id="${user.ID_Usuario}">
+                                ${opcionesHTML}
+                            </select>
+                        </td>
+                        <td>
+                            ${botonEliminarHTML}
+                        </td>
+                    `;
                     tbody.appendChild(tr);
                 });
             } else {
@@ -200,6 +204,70 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error de red al cargar usuarios:', error);
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#e74c3c; padding: 20px;">No se pudo conectar con el servidor.</td></tr>';
         }
+    }
+
+    const tbodyAdmin = document.querySelector('#vista-admin-usuarios .data-table tbody');
+    
+    if (tbodyAdmin) {
+        // Evento para cambiar rol
+        tbodyAdmin.addEventListener('change', async (e) => {
+            if (e.target.classList.contains('select-rol')) {
+                const selectElement = e.target;
+                const userId = selectElement.getAttribute('data-id');
+                const nuevoRol = selectElement.value;
+                const rolAnterior = selectElement.getAttribute('data-current-rol'); // Asumiendo que agregaste esto en el HTML
+
+                if (confirm(`¿Estás seguro que deseas asignarle a este usuario el rol: ${nuevoRol}?`)) {
+                    try {
+                        const res = await fetch(`/api/usuarios/${userId}/rol`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ nuevoRol })
+                        });
+
+                        const data = await res.json();
+                        if (!res.ok) {
+                            alert(`Error: ${data.message}`);
+                            cargarListaUsuarios();
+                        } else {
+                            console.log(data.message);
+                            cargarListaUsuarios();
+                        }
+                    } catch (err) {
+                        alert('Error al intentar cambiar el rol.');
+                        cargarListaUsuarios();
+                    }
+                } else {
+                    // Si cancela, volvemos a cargar para revertir visualmente
+                    cargarListaUsuarios(); 
+                }
+            }
+        });
+
+        // Evento para eliminar usuario
+        tbodyAdmin.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('btn-eliminar-usuario')) {
+                const userId = e.target.getAttribute('data-id');
+
+                if (confirm('¿Estás seguro de que deseás eliminar este usuario?')) {
+                    try {
+                        const res = await fetch(`/api/usuarios/${userId}`, { method: 'DELETE' });
+                        const data = await res.json();
+
+                        if (res.ok) {
+                            cargarListaUsuarios();
+                        } else {
+                            alert(`Error: ${data.message}`);
+                        }
+                    } catch (err) {
+                        alert('Error al intentar eliminar el usuario.');
+                    }
+                }
+                else {  
+                    cargarListaUsuarios(); 
+                }
+            }
+        });
     }
 
     // ==========================================
