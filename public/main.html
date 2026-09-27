@@ -52,7 +52,31 @@
                 <div class="table-container">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3>Vehículos en Depósito</h3>
-                        <input type="text" placeholder="Buscar patente o modelo..." style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                        <div style="display: flex; gap: 10px;">
+                            <select id="filtro-marca" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                                <option value="">Todas las marcas</option>
+                                <option value="Audi">Audi</option>
+                                <option value="BMW">BMW</option>
+                                <option value="Chery">Chery</option>
+                                <option value="Chevrolet">Chevrolet</option>
+                                <option value="Citroën">Citroën</option>
+                                <option value="Fiat">Fiat</option>
+                                <option value="Ford">Ford</option>
+                                <option value="Honda">Honda</option>
+                                <option value="Hyundai">Hyundai</option>
+                                <option value="Jeep">Jeep</option>
+                                <option value="Kia">Kia</option>
+                                <option value="Mercedes-Benz">Mercedes-Benz</option>
+                                <option value="Nissan">Nissan</option>
+                                <option value="Peugeot">Peugeot</option>
+                                <option value="Renault">Renault</option>
+                                <option value="Suzuki">Suzuki</option>
+                                <option value="Toyota">Toyota</option>
+                                <option value="Volkswagen">Volkswagen</option>
+                                <option value="Otra">Otra (Personalizada)</option>
+                            </select>
+                            <input type="text" id="buscador-patente" placeholder="Buscar patente..." style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                        </div>
                     </div>
                     
                     <table class="data-table">
@@ -178,17 +202,28 @@
                     <label>Marca</label>
                     <select id="ing-marca" required>
                         <option value="" disabled selected>Seleccione una marca...</option>
-                        <option value="Chevrolet">Chevrolet</option>
-                        <option value="Fiat">Fiat</option>
-                        <option value="Ford">Ford</option>
-                        <option value="Peugeot">Peugeot</option>
-                        <option value="Renault">Renault</option>
-                        <option value="Toyota">Toyota</option>
-                        <option value="Volkswagen">Volkswagen</option>
-                        <option value="Otra">Otra</option>
+                            <option value="Audi">Audi</option>
+                            <option value="BMW">BMW</option>
+                            <option value="Chery">Chery</option>
+                            <option value="Chevrolet">Chevrolet</option>
+                            <option value="Citroën">Citroën</option>
+                            <option value="Fiat">Fiat</option>
+                            <option value="Ford">Ford</option>
+                            <option value="Honda">Honda</option>
+                            <option value="Hyundai">Hyundai</option>
+                            <option value="Jeep">Jeep</option>
+                            <option value="Kia">Kia</option>
+                            <option value="Mercedes-Benz">Mercedes-Benz</option>
+                            <option value="Nissan">Nissan</option>
+                            <option value="Peugeot">Peugeot</option>
+                            <option value="Renault">Renault</option>
+                            <option value="Suzuki">Suzuki</option>
+                            <option value="Toyota">Toyota</option>
+                            <option value="Volkswagen">Volkswagen</option>
+                            <option value="Otra">Otra (Especificar en modelo)</option>
                     </select>
                 </div>
-                <div class="input-group"><label>Modelo</label><input type="text" id="ing-modelo" required></div>
+                <div class="input-group"><label>Modelo</label><input type="text" id="ing-modelo" required maxlength="50"></div>
                 <div class="input-group"><label>Nombre del Titular</label><input type="text" id="ing-titular" required></div>
                 <div class="input-group"><label>DNI del Titular</label><input type="text" id="ing-dni" required maxlength="8" pattern="\d*"></div>
                 <div class="input-group"><label>Descripción de daños o estado físico</label><textarea id="ing-desc" required></textarea></div>

@@ -145,6 +145,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const selectMarca = document.getElementById('ing-marca');
+    const inputModelo = document.getElementById('ing-modelo');
+
+    if (selectMarca && inputModelo) {
+        selectMarca.addEventListener('change', (e) => {
+            if (e.target.value === 'Otra') {
+                inputModelo.placeholder = "Ej: Ferrari Enzo";
+            } else {
+                inputModelo.placeholder = ""; 
+            }
+        });
+    }
+    if (inputModelo) {
+        inputModelo.addEventListener('input', function() {
+            this.value = this.value.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+        });
+    }
+
     const formIngreso = document.getElementById('form-ingreso');
     if (formIngreso) {
         formIngreso.addEventListener('submit', async(e) => {
@@ -290,10 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         textColor = 'black'; 
                     }
 
+                    const textMarca = v.Marca === 'Otra' ? v.Modelo : `${v.Marca} ${v.Modelo}`;
+
                     const tr = document.createElement('tr');
+                    tr.setAttribute('data-marca', v.Marca);
                     tr.innerHTML = `
                         <td><strong>${v.Patente}</strong></td>
-                        <td>${v.Marca} ${v.Modelo}</td>
+                        <td>${textMarca}</td>
                         <td>${fechaLocal}</td>
                         <td>
                             <select class="status-selector select-estado-vehiculo" data-patente="${v.Patente}" style="background-color: ${bgColor}; color: ${textColor}; font-weight: bold; border: 1px solid #ccc; padding: 4px; border-radius: 4px;">
@@ -418,6 +439,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+    }
+
+    const buscadorPatente = document.getElementById('buscador-patente');
+    const filtroMarca = document.getElementById('filtro-marca');
+
+    function aplicarFiltros() {
+        const textoPatente = buscadorPatente ? buscadorPatente.value.toLowerCase().trim() : '';
+        const marcaSeleccionada = filtroMarca ? filtroMarca.value : '';
+
+        const filas = document.querySelectorAll('#vista-monitor .data-table tbody tr');
+
+        filas.forEach(fila => {
+            if (fila.children.length <= 1) return; 
+
+            const patenteFila = fila.children[0].textContent.toLowerCase();
+            const marcaFila = fila.getAttribute('data-marca'); 
+
+            const coincidePatente = patenteFila.includes(textoPatente);
+            const coincideMarca = marcaSeleccionada === '' || marcaFila === marcaSeleccionada;
+
+            if (coincidePatente && coincideMarca) {
+                fila.style.display = '';
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+    }
+
+    if (buscadorPatente) {
+        buscadorPatente.addEventListener('input', aplicarFiltros);
+    }
+    if (filtroMarca) {
+        filtroMarca.addEventListener('change', aplicarFiltros);
     }
 
     // ==========================================
