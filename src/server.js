@@ -193,6 +193,84 @@ app.delete('/api/usuarios/:id', async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 });
+
+app.post('/api/vehiculos/add', async (req, res) => {
+    const { patente, marca, modelo,nombreTitular,dniTitular, descripcion, motivo, fecha, idDeposito } = req.body;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('patente', sql.VarChar, patente)
+            .input('marca', sql.VarChar, marca)
+            .input('modelo', sql.VarChar, modelo)
+            .input('titular', sql.VarChar, nombreTitular)
+            .input('dni', sql.VarChar, dniTitular)
+            .input('descripcion', sql.Text, descripcion)
+            .input('motivo', sql.VarChar, motivo)
+            .input('fecha', sql.Date, fecha)
+            .input('id_deposito', sql.Int, idDeposito)
+            .input('estado', sql.VarChar, 'Activo') 
+            .query(`
+                INSERT INTO Vehiculos (Patente, Marca, Modelo,Nombre_Titular, DNI_Titular, Descripcion_Danos, Motivo_Incautacion, Fecha_Ingreso, ID_Deposito, Estado_Actual) 
+                VALUES (@patente, @marca, @modelo,@titular, @dni, @descripcion, @motivo, @fecha, @id_deposito, @estado)
+            `);
+
+        res.status(201).json({ message: 'Vehículo ingresado con éxito' });
+    } catch (err) {
+        console.error('Error al ingresar vehículo:', err);
+        res.status(500).json({ message: 'Error al registrar el vehículo.' });
+    }
+});
+
+app.get('/api/vehiculos/:idDeposito', async (req, res) => {
+    const idDeposito = req.params.idDeposito;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        const result = await pool.request()
+            .input('id_deposito', sql.Int, idDeposito)
+            .query("SELECT Patente, Marca, Modelo, Fecha_Ingreso, Estado_Actual FROM Vehiculos WHERE ID_Deposito = @id_deposito AND Estado_Actual != 'Baja'");
+            
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener vehículos:', err);
+        res.status(500).json({ message: 'Error al cargar el dashboard.' });
+    }
+});
+
+app.get('/api/depositos/:id/stats', async (req, res) => {
+    const idDeposito = req.params.id;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request()
+            .input('id', sql.Int, idDeposito)
+            .query(`
+                SELECT 
+                    d.Capacidad_Maxima,
+                    (SELECT COUNT(*) FROM Vehiculos v WHERE v.ID_Deposito = d.ID_Deposito AND v.Estado_Actual = 'Activo') AS Ocupados
+                FROM Depositos d
+                WHERE d.ID_Deposito = @id
+            `);
+            
+        if (result.recordset.length === 0) {
+            return res.status(404).json({ message: 'Depósito no encontrado' });
+        }
+        
+        const stats = result.recordset[0];
+        res.status(200).json({
+            totales: stats.Capacidad_Maxima,
+            ocupados: stats.Ocupados,
+            libres: stats.Capacidad_Maxima - stats.Ocupados // Acá hacemos la resta directamente en el servidor
+        });
+
+    } catch (err) {
+        console.error('Error al calcular capacidad:', err);
+        res.status(500).json({ message: 'Error interno al cargar estadísticas.' });
+    }
+});
 // Rutas de las vistas
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/login.html'));

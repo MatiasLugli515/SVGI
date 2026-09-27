@@ -99,7 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const selectDeposito = document.getElementById('deposito');
             const nombreDeposito = selectDeposito.options[selectDeposito.selectedIndex].text;
+            const idDeposito = selectDeposito.value;
             localStorage.setItem('sgvi_deposito_nombre', nombreDeposito);
+            localStorage.setItem('sgvi_deposito_id', idDeposito);
             window.location.href = '/main.html';
         });
     }

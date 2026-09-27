@@ -63,6 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    cargarVehiculos();
+    cargarEstadisticas();
     // ==========================================
     // 2. CONTROL DE MODALES (Popups)
     // ==========================================
@@ -97,10 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (closeBtn) {
             closeBtn.addEventListener('click', () => closeModal(modal));
         }
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal(modal);
-        });
     });
 
     const formDepositoNuevo = document.getElementById('form-deposito-nuevo');
@@ -133,11 +131,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const inputPatente = document.getElementById('ing-patente');
+    if (inputPatente) {
+        inputPatente.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+    }
+
+    const inputDni = document.getElementById('ing-dni');
+    if (inputDni) {
+        inputDni.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    }
+
     const formIngreso = document.getElementById('form-ingreso');
     if (formIngreso) {
-        formIngreso.addEventListener('submit', (e) => {
+        formIngreso.addEventListener('submit', async(e) => {
             e.preventDefault();
-            alert('Ingreso registrado (Simulación)');
+            const patente = document.getElementById('ing-patente').value;
+            const marca = document.getElementById('ing-marca').value;
+            const modelo = document.getElementById('ing-modelo').value;
+            const nombreTitular = document.getElementById('ing-titular').value;
+            const dniTitular = document.getElementById('ing-dni').value;
+            const descripcion = document.getElementById('ing-desc').value;
+            const motivo = document.getElementById('ing-motivo').value;
+            const fecha = document.getElementById('ing-fecha').value;
+            const idDeposito = localStorage.getItem('sgvi_deposito_id'); 
+
+            if (patente.length < 6) {
+                alert('La patente debe tener al menos 6 caracteres (ej: AAA111 o AB123CD).');
+                return;
+            }
+            if (dniTitular.length < 7) {
+                alert('El DNI ingresado es demasiado corto.');
+                return; 
+            }
+
+            try {
+                const response = await fetch('/api/vehiculos/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ patente, marca, modelo, nombreTitular, dniTitular, descripcion, motivo, fecha, idDeposito })
+                });
+
+                if (response.ok) {
+                    alert('Vehículo ingresado exitosamente al depósito.');
+                    closeModal(document.getElementById('modal-ingreso'));
+                    cargarVehiculos(); // Recargamos el dashboard automáticamente
+                    cargarEstadisticas();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.message}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Hubo un problema de conexión al registrar el vehículo.');
+            }
             closeModal(document.getElementById('modal-ingreso'));
         });
     }
@@ -204,6 +254,106 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error de red al cargar usuarios:', error);
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#e74c3c; padding: 20px;">No se pudo conectar con el servidor.</td></tr>';
         }
+    }
+
+    async function cargarVehiculos() {
+        const tbody = document.querySelector('#vista-monitor .data-table tbody');
+        if (!tbody) return;
+
+        const idDeposito = localStorage.getItem('sgvi_deposito_id');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando vehículos...</td></tr>';
+
+        try {
+            const response = await fetch(`/api/vehiculos/${idDeposito}`);
+            
+            if (response.ok) {
+                const vehiculos = await response.json();
+                tbody.innerHTML = ''; 
+
+                if (vehiculos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay vehículos activos en este depósito.</td></tr>';
+                    return;
+                }
+
+                vehiculos.forEach(v => {
+                    const fechaObj = new Date(v.Fecha_Ingreso);
+                    const fechaLocal = fechaObj.toLocaleDateString('es-AR', { timeZone: 'UTC' });
+
+                    let bgColor = '';
+                    let textColor = 'black'; 
+
+                    if (v.Estado_Actual === 'Activo') {
+                        bgColor = '#2ecc71'; 
+                        textColor = 'white'; 
+                    } else if (v.Estado_Actual === 'Remate') {
+                        bgColor = '#f1c40f'; 
+                        textColor = 'black'; 
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${v.Patente}</strong></td>
+                        <td>${v.Marca} ${v.Modelo}</td>
+                        <td>${fechaLocal}</td>
+                        <td>
+                            <select class="status-selector select-estado-vehiculo" data-patente="${v.Patente}" style="background-color: ${bgColor}; color: ${textColor}; font-weight: bold; border: 1px solid #ccc; padding: 4px; border-radius: 4px;">
+                                <option value="Activo" ${v.Estado_Actual === 'Activo' ? 'selected' : ''} >Activo en Depósito</option>
+                                <option value="Remate" ${v.Estado_Actual === 'Remate' ? 'selected' : ''} >Enviado a Remate</option>
+                            </select>
+                        </td>
+                        <td><button class="btn-secondary" style="padding: 6px 10px; font-size: 13px;">Ver Detalle</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (error) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error al cargar datos.</td></tr>';
+        }
+    }
+
+    async function cargarEstadisticas() {
+        const idDeposito = localStorage.getItem('sgvi_deposito_id');
+        if (!idDeposito) return;
+
+        try {
+            const response = await fetch(`/api/depositos/${idDeposito}/stats`);
+            
+            if (response.ok) {
+                const stats = await response.json();
+                
+                document.getElementById('stat-totales').textContent = stats.totales;
+                document.getElementById('stat-ocupados').textContent = stats.ocupados;
+                document.getElementById('stat-libres').textContent = stats.libres;
+                
+                if (stats.libres <= 5) {
+                    document.getElementById('stat-libres').style.color = '#e74c3c'; 
+                } else {
+                    document.getElementById('stat-libres').style.color = '';
+                }
+            }
+        } catch (error) {
+            console.error('Error al cargar la capacidad del depósito', error);
+        }
+    }
+
+    const tbodyMonitor = document.querySelector('#vista-monitor .data-table tbody');
+    if (tbodyMonitor) {
+        tbodyMonitor.addEventListener('change', async (e) => {
+            if (e.target.classList.contains('select-estado-vehiculo')) {
+                const selectElement = e.target;
+                const nuevoEstado = selectElement.value;
+                const patente = selectElement.getAttribute('data-patente');
+
+                selectElement.classList.remove('estado-activo', 'estado-remate');
+                
+                if (nuevoEstado === 'Activo') {
+                    selectElement.classList.add('estado-activo');
+                } else if (nuevoEstado === 'Remate') {
+                    selectElement.classList.add('estado-remate');
+                }
+
+            }
+        });
     }
 
     const tbodyAdmin = document.querySelector('#vista-admin-usuarios .data-table tbody');

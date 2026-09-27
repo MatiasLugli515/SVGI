@@ -201,3 +201,19 @@ body {
     outline: none;
     border-color: #3498db;
 }
+
+.estado-activo {
+    background-color: #2ecc71 !important;
+    color: white !important;
+}
+
+.estado-remate {
+    background-color: #f1c40f !important;
+    color: black !important;
+}
+
+/* Forzar que las opciones del desplegable sean siempre blancas */
+.select-estado-vehiculo option {
+    background-color: white !important;
+    color: black !important;
+}

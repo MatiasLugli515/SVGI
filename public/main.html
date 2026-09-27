@@ -43,9 +43,9 @@
                 </div>
                 
                 <div class="stats-container">
-                    <div class="stat-card"><h3>Lugares Totales</h3><p>150</p></div>
-                    <div class="stat-card"><h3>Ocupados</h3><p>120</p></div>
-                    <div class="stat-card"><h3>Libres</h3><p>30</p></div>
+                    <div class="stat-card"><h3>Lugares Totales</h3><p id="stat-totales">--</p></div>
+                    <div class="stat-card"><h3>Ocupados</h3><p id="stat-ocupados">--</p></div>
+                    <div class="stat-card"><h3>Libres</h3><p id="stat-libres">--</p></div>
                 </div>
 
                 <!-- Buscador y Tabla de Vehículos Activos -->
@@ -170,12 +170,30 @@
             <button class="close-btn">&times;</button>
             <h2>Registrar Ingreso de Vehículo</h2>
             <form id="form-ingreso">
-                <div class="input-group"><label>Patente</label><input type="text" required></div>
-                <div class="input-group"><label>Marca</label><input type="text" required></div>
-                <div class="input-group"><label>Modelo</label><input type="text" required></div>
-                <div class="input-group"><label>Descripción de daños o estado físico</label><textarea required></textarea></div>
-                <div class="input-group"><label>Motivo de la incautación</label><input type="text" required></div>
-                <div class="input-group"><label>Fecha de ingreso</label><input type="date" required></div>
+                <div class="input-group">
+                    <label>Patente</label>
+                    <input type="text" id="ing-patente" required maxlength="7" style="text-transform: uppercase;">
+                </div>
+                <div class="input-group">
+                    <label>Marca</label>
+                    <select id="ing-marca" required>
+                        <option value="" disabled selected>Seleccione una marca...</option>
+                        <option value="Chevrolet">Chevrolet</option>
+                        <option value="Fiat">Fiat</option>
+                        <option value="Ford">Ford</option>
+                        <option value="Peugeot">Peugeot</option>
+                        <option value="Renault">Renault</option>
+                        <option value="Toyota">Toyota</option>
+                        <option value="Volkswagen">Volkswagen</option>
+                        <option value="Otra">Otra</option>
+                    </select>
+                </div>
+                <div class="input-group"><label>Modelo</label><input type="text" id="ing-modelo" required></div>
+                <div class="input-group"><label>Nombre del Titular</label><input type="text" id="ing-titular" required></div>
+                <div class="input-group"><label>DNI del Titular</label><input type="text" id="ing-dni" required maxlength="8" pattern="\d*"></div>
+                <div class="input-group"><label>Descripción de daños o estado físico</label><textarea id="ing-desc" required></textarea></div>
+                <div class="input-group"><label>Motivo de la incautación</label><input type="text" id="ing-motivo" required></div>
+                <div class="input-group"><label>Fecha de ingreso</label><input type="date" id="ing-fecha" required></div>
                 <div class="input-group"><label>Fotografías (Máx 5)</label><input type="file" multiple accept="image/*"></div>
                 <button type="submit" class="btn-primary">Confirmar Ingreso</button>
             </form>
