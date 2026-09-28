@@ -3,6 +3,9 @@ const path = require('path');
 const sql = require('mssql');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs');
+
 const SECRET_KEY = 'f56509c00a30fe0b194dd13034b168e807838f9306359d91d3dfe0d8b7d2d0466d2ada71c222e5e14085bd5725593effab96eb358626709549ebabff35aee4c6';
 
 const app = express();
@@ -10,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 const dbConfig = {
     user: 'candela',
@@ -22,6 +26,18 @@ const dbConfig = {
         encrypt: false
     }
 };
+
+const uploadDir = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
 
 // Endpoint de Registro
 app.post('/api/registro', async (req, res) => {
@@ -194,13 +210,23 @@ app.delete('/api/usuarios/:id', async (req, res) => {
     }
 });
 
-app.post('/api/vehiculos/add', async (req, res) => {
+app.post('/api/vehiculos/add', upload.array('fotos', 5), async (req, res) => {
     const { patente, marca, modelo,nombreTitular,dniTitular, descripcion, motivo, fecha, idDeposito } = req.body;
 
     try {
         let pool = await sql.connect(dbConfig);
+
+        const checkVehiculo = await pool.request()
+            .input('patenteCheck', sql.VarChar, patente)
+            .query("SELECT Estado_Actual FROM Vehiculos WHERE Patente = @patenteCheck AND Estado_Actual != 'Baja'");
+
+        if (checkVehiculo.recordset.length > 0) {
+            return res.status(400).json({ 
+                message: `El vehículo con patente ${patente} ya se encuentra ingresado actualmente en un depósito.` 
+            });
+        }
         
-        await pool.request()
+        const resultVehiculo = await pool.request()
             .input('patente', sql.VarChar, patente)
             .input('marca', sql.VarChar, marca)
             .input('modelo', sql.VarChar, modelo)
@@ -212,14 +238,81 @@ app.post('/api/vehiculos/add', async (req, res) => {
             .input('id_deposito', sql.Int, idDeposito)
             .input('estado', sql.VarChar, 'Activo') 
             .query(`
-                INSERT INTO Vehiculos (Patente, Marca, Modelo,Nombre_Titular, DNI_Titular, Descripcion_Danos, Motivo_Incautacion, Fecha_Ingreso, ID_Deposito, Estado_Actual) 
-                VALUES (@patente, @marca, @modelo,@titular, @dni, @descripcion, @motivo, @fecha, @id_deposito, @estado)
+                INSERT INTO Vehiculos 
+                (Patente, Marca, Modelo, Nombre_Titular, DNI_Titular, Descripcion_Danos, Motivo_Incautacion, Fecha_Ingreso, ID_Deposito, Estado_Actual) 
+                OUTPUT Inserted.ID_Vehiculo 
+                VALUES (@patente, @marca, @modelo, @titular, @dni, @descripcion, @motivo, @fecha, @id_deposito, @estado)
             `);
 
+        const idNuevoVehiculo = resultVehiculo.recordset[0].ID_Vehiculo;
+        if (req.files && req.files.length > 0) {
+            for (let i = 0; i < req.files.length; i++) {
+                const rutaDestino = `/uploads/${req.files[i].filename}`;
+                await pool.request()
+                    .input('idVehiculo', sql.Int, idNuevoVehiculo)
+                    .input('ruta', sql.VarChar, rutaDestino)
+                    .query('INSERT INTO Fotos_Vehiculo (ID_Vehiculo, Ruta_Archivo) VALUES (@idVehiculo, @ruta)');
+            }
+        }
+        
         res.status(201).json({ message: 'Vehículo ingresado con éxito' });
     } catch (err) {
         console.error('Error al ingresar vehículo:', err);
         res.status(500).json({ message: 'Error al registrar el vehículo.' });
+    }
+});
+
+app.get('/api/vehiculos/detalle/:patente', async (req, res) => {
+    const patente = req.params.patente;
+    
+    try {
+        let pool = await sql.connect(dbConfig);
+        
+        const vehiculoResult = await pool.request()
+            .input('patente', sql.VarChar, patente)
+            .query("SELECT * FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
+            
+        if (vehiculoResult.recordset.length === 0) {
+            return res.status(404).json({ message: 'Vehículo no encontrado.' });
+        }
+        
+        const vehiculo = vehiculoResult.recordset[0];
+
+        
+        const fotosResult = await pool.request()
+            .input('idVehiculo', sql.Int, vehiculo.ID_Vehiculo)
+            .query("SELECT Ruta_Archivo FROM Fotos_Vehiculo WHERE ID_Vehiculo = @idVehiculo");
+            
+
+        const rutasEncontradas = fotosResult.recordset.map(f => Object.values(f)[0]);
+        const respuestaFinal = {
+            ...vehiculo,
+            arrayFotos: rutasEncontradas
+        };
+        
+        res.status(200).json(respuestaFinal);
+    } catch (err) {
+        console.error('Error al obtener detalle:', err);
+        res.status(500).json({ message: 'Error al cargar los detalles.' });
+    }
+});
+
+app.put('/api/vehiculos/:patente/estado', async (req, res) => {
+    const patente = req.params.patente;
+    const { nuevoEstado } = req.body;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        
+        await pool.request()
+            .input('estado', sql.VarChar, nuevoEstado)
+            .input('patente', sql.VarChar, patente)
+            .query('UPDATE Vehiculos SET Estado_Actual = @estado WHERE Patente = @patente');
+
+        res.status(200).json({ message: 'Estado actualizado correctamente.' });
+    } catch (err) {
+        console.error('Error al actualizar estado del vehículo:', err);
+        res.status(500).json({ message: 'Error interno al cambiar el estado.' });
     }
 });
 
@@ -250,7 +343,7 @@ app.get('/api/depositos/:id/stats', async (req, res) => {
             .query(`
                 SELECT 
                     d.Capacidad_Maxima,
-                    (SELECT COUNT(*) FROM Vehiculos v WHERE v.ID_Deposito = d.ID_Deposito AND v.Estado_Actual = 'Activo') AS Ocupados
+                    (SELECT COUNT(*) FROM Vehiculos v WHERE v.ID_Deposito = d.ID_Deposito AND v.Estado_Actual IN ('Activo', 'Remate')) AS Ocupados
                 FROM Depositos d
                 WHERE d.ID_Deposito = @id
             `);
@@ -269,6 +362,32 @@ app.get('/api/depositos/:id/stats', async (req, res) => {
     } catch (err) {
         console.error('Error al calcular capacidad:', err);
         res.status(500).json({ message: 'Error interno al cargar estadísticas.' });
+    }
+});
+
+app.post('/api/vehiculos/retiro', async (req, res) => {
+    const { patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion } = req.body;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        
+        const checkVehiculo = await pool.request()
+            .input('patente', sql.VarChar, patente)
+            .query("SELECT Patente, Estado_Actual FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
+            
+        if (checkVehiculo.recordset.length === 0) {
+            return res.status(404).json({ message: 'Vehículo no encontrado o ya fue dado de baja previamente.' });
+        }
+        await pool.request()
+            .input('patente', sql.VarChar, patente)
+            .input('estado', sql.VarChar, 'Baja')
+            .query("UPDATE Vehiculos SET Estado_Actual = @estado WHERE Patente = @patente");
+
+        res.status(200).json({ message: 'Vehículo dado de baja exitosamente.' });
+
+    } catch (err) {
+        console.error('Error al registrar la baja:', err);
+        res.status(500).json({ message: 'Error interno del servidor al procesar la salida.' });
     }
 });
 // Rutas de las vistas

@@ -229,7 +229,7 @@
                 <div class="input-group"><label>Descripción de daños o estado físico</label><textarea id="ing-desc" required></textarea></div>
                 <div class="input-group"><label>Motivo de la incautación</label><input type="text" id="ing-motivo" required></div>
                 <div class="input-group"><label>Fecha de ingreso</label><input type="date" id="ing-fecha" required></div>
-                <div class="input-group"><label>Fotografías (Máx 5)</label><input type="file" multiple accept="image/*"></div>
+                <div class="input-group"><label>Fotografías (Máx 5)</label><input type="file" id="ing-fotos" multiple accept="image/*"></div>
                 <button type="submit" class="btn-primary">Confirmar Ingreso</button>
             </form>
         </div>
@@ -239,20 +239,31 @@
     <div id="modal-retiro" class="modal hidden">
         <div class="modal-content">
             <button class="close-btn">&times;</button>
-            <h2>Registrar Retiro de Vehículo</h2>
+            <h2>Registrar Salida de Vehículo</h2>
             <div class="input-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="text" placeholder="Patente del vehículo...">
-                <button class="btn-secondary" style="width: auto;">Verificar</button>
+                <input type="text" id="baja-patente-busqueda" placeholder="Patente del vehículo...">
+                <button type="button" class="btn-secondary" style="width: auto;">Verificar</button>
             </div>
+            
             <form id="form-retiro">
-                <div class="input-group"><label>Nombre del retirante</label><input type="text" required></div>
-                <div class="input-group"><label>DNI</label><input type="text" required></div>
-                <div class="checkbox-group">
+                <div class="input-group">
+                    <label>Motivo de la salida</label>
+                    <select id="baja-motivo" required style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; width: 100%;">
+                        <option value="retiro">Devolución (Infracción resuelta)</option>
+                        <option value="venta">Entregado por Venta / Subasta</option>
+                    </select>
+                </div>
+
+                <div class="input-group"><label id="label-retirante">Nombre de quien retira</label><input type="text" id="baja-nombre" required></div>
+                <div class="input-group"><label>DNI</label><input type="text" id="baja-dni" required maxlength="8" pattern="\d*"></div>
+                
+                <div class="checkbox-group" id="grupo-titular">
                     <input type="checkbox" id="es-titular">
                     <label for="es-titular">¿Es el titular del vehículo?</label>
                 </div>
-                <div class="input-group"><label>Resolución de la infracción</label><input type="text" required></div>
-                <button type="submit" class="btn-primary">Confirmar Retiro</button>
+                
+                <div class="input-group"><label id="label-resolucion">Resolución de la infracción (Nº de comprobante)</label><input type="text" id="baja-resolucion" required></div>
+                <button type="submit" class="btn-primary" style="background-color: #e74c3c;">Confirmar Baja Definitiva</button>
             </form>
         </div>
     </div>
@@ -294,6 +305,26 @@
             </form>
         </div>
     </div>
+
+    <!-- MODAL: Ver Detalle -->
+    <div id="modal-detalle" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-btn">&times;</button>
+            <h2 id="det-titulo">Detalles del Vehículo</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; font-size: 14px;">
+                <p><strong>Titular:</strong> <span id="det-titular"></span></p>
+                <p><strong>DNI:</strong> <span id="det-dni"></span></p>
+                <p><strong>Ingreso:</strong> <span id="det-fecha"></span></p>
+                <p><strong>Motivo:</strong> <span id="det-motivo"></span></p>
+                <p style="grid-column: span 2;"><strong>Descripción / Daños:</strong> <br><span id="det-desc"></span></p>
+            </div>
+            <h3>Fotografías</h3>
+            <div id="det-galeria" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #ccc;">
+                <!-- Las fotos se inyectan acá -->
+            </div>
+        </div>
+    </div>
+    
     <script src="js/main.js"></script>
 </body>
 </html>

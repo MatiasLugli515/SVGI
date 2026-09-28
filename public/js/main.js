@@ -145,6 +145,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const inputBajaPatente = document.getElementById('baja-patente-busqueda');
+    if (inputBajaPatente) {
+        inputBajaPatente.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+    }
+
     const selectMarca = document.getElementById('ing-marca');
     const inputModelo = document.getElementById('ing-modelo');
 
@@ -185,12 +192,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('El DNI ingresado es demasiado corto.');
                 return; 
             }
+            console.log('Datos a enviar:', { patente, marca, modelo, nombreTitular, dniTitular, descripcion, motivo, fecha, idDeposito });
+
+            const formData = new FormData();
+            formData.append('patente', patente);
+            formData.append('marca', marca);
+            formData.append('modelo', modelo);
+            formData.append('nombreTitular', nombreTitular);
+            formData.append('dniTitular', dniTitular);
+            formData.append('descripcion', descripcion);
+            formData.append('motivo', motivo);
+            formData.append('fecha', fecha);
+            formData.append('idDeposito', idDeposito);
+
+            const inputFotos = document.getElementById('ing-fotos');
+            if (inputFotos && inputFotos.files.length > 0) {
+                for (let i = 0; i < inputFotos.files.length; i++) {
+                    formData.append('fotos', inputFotos.files[i]); 
+                }
+            }
 
             try {
                 const response = await fetch('/api/vehiculos/add', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ patente, marca, modelo, nombreTitular, dniTitular, descripcion, motivo, fecha, idDeposito })
+                    body: formData 
                 });
 
                 if (response.ok) {
@@ -206,16 +231,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error(err);
                 alert('Hubo un problema de conexión al registrar el vehículo.');
             }
-            closeModal(document.getElementById('modal-ingreso'));
         });
     }
 
     const formRetiro = document.getElementById('form-retiro');
     if (formRetiro) {
-        formRetiro.addEventListener('submit', (e) => {
+        formRetiro.addEventListener('submit', async (e) => {
             e.preventDefault();
-            alert('Retiro registrado (Simulación)');
-            closeModal(document.getElementById('modal-retiro'));
+            
+            const inputPatenteBaja = document.getElementById('baja-patente-busqueda');
+            const patente = inputPatenteBaja ? inputPatenteBaja.value.trim().toUpperCase() : '';
+            
+            if (!patente) {
+                alert('Por favor, ingresá la patente del vehículo a dar de baja.');
+                return;
+            }
+
+            const motivo = document.getElementById('baja-motivo').value;
+            const retiranteNombre = document.getElementById('baja-nombre').value;
+            const retiranteDni = document.getElementById('baja-dni').value;
+            const esTitular = document.getElementById('es-titular').checked;
+            const resolucion = document.getElementById('baja-resolucion').value;
+
+            try {
+                const response = await fetch('/api/vehiculos/retiro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion })
+                });
+
+                if (response.ok) {
+                    alert('Salida de vehículo registrada con éxito.');
+                    closeModal(document.getElementById('modal-retiro'));
+
+                    cargarVehiculos(); 
+                    cargarEstadisticas(); 
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.message}`);
+                }
+            } catch (err) {
+                console.error('Error en la baja:', err);
+                alert('Hubo un problema de conexión al registrar la salida del vehículo.');
+            }
         });
     }
 
@@ -322,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <option value="Remate" ${v.Estado_Actual === 'Remate' ? 'selected' : ''} >Enviado a Remate</option>
                             </select>
                         </td>
-                        <td><button class="btn-secondary" style="padding: 6px 10px; font-size: 13px;">Ver Detalle</button></td>
+                        <td><button class="btn-secondary btn-ver-detalle" data-patente="${v.Patente}" style="padding: 6px 10px; font-size: 13px;">Ver Detalle</button></td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -366,11 +424,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 const patente = selectElement.getAttribute('data-patente');
 
                 selectElement.classList.remove('estado-activo', 'estado-remate');
-                
                 if (nuevoEstado === 'Activo') {
                     selectElement.classList.add('estado-activo');
                 } else if (nuevoEstado === 'Remate') {
                     selectElement.classList.add('estado-remate');
+                }
+                try {
+                    const res = await fetch(`/api/vehiculos/${patente}/estado`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nuevoEstado })
+                    });
+
+                    const data = await res.json();
+                    
+                    if (!res.ok) {
+                        alert(`Error: ${data.message}`);
+                        cargarVehiculos(); 
+                    } else {
+                        cargarEstadisticas(); 
+                    }
+                } catch (err) {
+                    alert('Error de conexión al intentar cambiar el estado en el servidor.');
+                    cargarVehiculos(); 
                 }
 
             }
@@ -474,6 +550,87 @@ document.addEventListener('DOMContentLoaded', () => {
         filtroMarca.addEventListener('change', aplicarFiltros);
     }
 
+
+    //Modal Dinamico de retiro
+    const bajaMotivo = document.getElementById('baja-motivo');
+    const grupoTitular = document.getElementById('grupo-titular');
+    const labelRetirante = document.getElementById('label-retirante');
+    const labelResolucion = document.getElementById('label-resolucion');
+    const checkboxTitular = document.getElementById('es-titular');
+
+    if (bajaMotivo) {
+        bajaMotivo.addEventListener('change', (e) => {
+            if (e.target.value === 'venta') {
+                grupoTitular.style.display = 'none';
+                checkboxTitular.checked = false;
+                labelRetirante.textContent = 'Nombre del comprador';
+                labelResolucion.textContent = 'Nº de Expediente / Acta de Remate';
+            } else {
+                grupoTitular.style.display = 'flex';
+                labelRetirante.textContent = 'Nombre de quien retira';
+                labelResolucion.textContent = 'Resolución de la infracción (Nº de comprobante)';
+            }
+        });
+    }
+
+    
+    const modalDetalle = document.getElementById('modal-detalle');
+    
+    if (modalDetalle) {
+        const closeBtnDetalle = modalDetalle.querySelector('.close-btn');
+        if (closeBtnDetalle) {
+            closeBtnDetalle.addEventListener('click', () => closeModal(modalDetalle));
+        }
+    }
+
+    if (tbodyMonitor) {
+        tbodyMonitor.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('btn-ver-detalle')) {
+                const patente = e.target.getAttribute('data-patente');
+                
+                try {
+                    const response = await fetch(`/api/vehiculos/detalle/${patente}`);
+                    if (response.ok) {
+                        const v = await response.json();
+                        
+                        const fechaLocal = new Date(v.Fecha_Ingreso).toLocaleDateString('es-AR', { timeZone: 'UTC' });
+                        const textMarca = v.Marca === 'Otra' ? v.Modelo : `${v.Marca} ${v.Modelo}`;
+
+                        document.getElementById('det-titulo').textContent = `${patente} - ${textMarca}`;
+                        document.getElementById('det-titular').textContent = v.Nombre_Titular || 'N/A';
+                        document.getElementById('det-dni').textContent = v.DNI_Titular || 'N/A';
+                        document.getElementById('det-fecha').textContent = fechaLocal;
+                        document.getElementById('det-motivo').textContent = v.Motivo_Incautacion || 'N/A';
+                        document.getElementById('det-desc').textContent = v.Descripcion_Danos || 'Sin descripción';
+
+                        const galeria = document.getElementById('det-galeria');
+                        galeria.innerHTML = ''; 
+                        
+                        if (v.arrayFotos && v.arrayFotos.length > 0) {
+                            v.arrayFotos.forEach(ruta => {
+                                const img = document.createElement('img');
+                                console.log('Cargando imagen:', ruta);
+                                img.src = ruta;
+                                img.style.height = '120px';
+                                img.style.borderRadius = '5px';
+                                img.style.objectFit = 'cover';
+                                galeria.appendChild(img);
+                            });
+                        } else {
+                            galeria.innerHTML = '<p style="color:#7f8c8d; font-style: italic;">No hay fotografías registradas.</p>';
+                        }
+
+                        openModal('modal-detalle');
+                    } else {
+                        alert('No se pudieron cargar los detalles.');
+                    }
+                } catch (err) {
+                    console.error('Error al abrir detalle:', err);
+                }
+            }
+        });
+    }
+    
     // ==========================================
     // 3. CERRAR SESIÓN
     // ==========================================
