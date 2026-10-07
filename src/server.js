@@ -293,9 +293,28 @@ app.get('/api/vehiculos/detalle/:patente', async (req, res) => {
             
 
         const rutasEncontradas = fotosResult.recordset.map(f => Object.values(f)[0]);
+
+        const historialResult = await pool.request()
+            .input('patenteHistorial', sql.VarChar, patente)
+            .query(`
+                SELECT 
+                    h.Fecha_Transaccion, 
+                    h.Evento, 
+                    u.Nombre AS Usuario,
+                    d.Nombre AS NombreDeposito,
+                    h.Detalle_Extra
+                FROM Historial_Vehiculo h
+                JOIN Vehiculos v ON h.ID_Vehiculo = v.ID_Vehiculo
+                JOIN Usuarios u ON h.ID_Usuario = u.ID_Usuario
+                JOIN Depositos d ON h.ID_Deposito = d.ID_Deposito
+                WHERE v.Patente = @patenteHistorial
+                ORDER BY h.Fecha_Transaccion DESC
+            `);
+        
         const respuestaFinal = {
             ...vehiculo,
-            arrayFotos: rutasEncontradas
+            arrayFotos: rutasEncontradas,
+            historial: historialResult.recordset
         };
         
         res.status(200).json(respuestaFinal);
@@ -391,21 +410,21 @@ app.get('/api/depositos/:id/stats', async (req, res) => {
 });
 
 app.post('/api/vehiculos/retiro', async (req, res) => {
-    const { patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion, idUsuario } = req.body;
+    const { patente, motivo, retiranteNombre, retiranteDni, resolucion, idUsuario } = req.body;
 
     try {
         let pool = await sql.connect(dbConfig);
         
         const checkVehiculo = await pool.request()
             .input('patente', sql.VarChar, patente)
-            .query("SELECT ID_Vehiculo, ID_Deposito FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
+            .query("SELECT ID_Vehiculo, ID_Deposito, DNI_Titular FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
 
             
         if (checkVehiculo.recordset.length === 0) {
             return res.status(404).json({ message: 'Vehículo no encontrado o ya fue dado de baja previamente.' });
         }
 
-        const { ID_Vehiculo, ID_Deposito } = checkVehiculo.recordset[0];
+        const { ID_Vehiculo, ID_Deposito,DNI_Titular} = checkVehiculo.recordset[0];
         
         await pool.request()
             .input('patente', sql.VarChar, patente)
@@ -413,8 +432,18 @@ app.post('/api/vehiculos/retiro', async (req, res) => {
             .query("UPDATE Vehiculos SET Estado_Actual = @estado WHERE Patente = @patente");
 
 
-        const nombreEvento = motivo === 'venta' ? 'Baja por Venta/Remate' : 'Baja por Devolución';
-        const detalleExtra = `Retirado por: ${retiranteNombre} (DNI: ${retiranteDni}). Resolución/Expediente: ${resolucion}`;
+        let nombreEvento = '';
+        let detalleExtra = '';
+
+        if (motivo === 'venta') {
+            nombreEvento = 'Baja por Venta/Remate';
+            detalleExtra = `Comprador: ${retiranteNombre} (DNI: ${retiranteDni}). Expediente: ${resolucion}`;
+        } else {
+            const esTitularReal = (DNI_Titular === retiranteDni);
+            
+            nombreEvento = esTitularReal ? 'Baja por Devolución (Titular)' : 'Baja por Devolución (Tercero)';
+            detalleExtra = `Retirado por: ${retiranteNombre} (DNI: ${retiranteDni}). Resolución: ${resolucion}`;
+        }
 
         await pool.request()
             .input('idVeh', sql.Int, ID_Vehiculo)
@@ -466,6 +495,27 @@ app.get('/api/historial/:idDeposito', async (req, res) => {
     } catch (err) {
         console.error('Error al cargar historial:', err);
         res.status(500).json({ message: 'Error interno al cargar la bitácora.' });
+    }
+});
+
+app.get('/api/vehiculos/historico/:patente', async (req, res) => {
+    const patente = req.params.patente;
+    
+    try {
+        let pool = await sql.connect(dbConfig);
+        
+        const result = await pool.request()
+            .input('patente', sql.VarChar, patente)
+            .query("SELECT TOP 1 Marca, Modelo FROM Vehiculos WHERE Patente = @patente ORDER BY Fecha_Ingreso DESC");
+            
+        if (result.recordset.length > 0) {
+            res.status(200).json(result.recordset[0]);
+        } else {
+            res.status(404).json({ message: 'No hay registros previos.' });
+        }
+    } catch (err) {
+        console.error('Error al buscar histórico de vehículo:', err);
+        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 });
 // Rutas de las vistas

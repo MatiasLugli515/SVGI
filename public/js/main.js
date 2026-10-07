@@ -148,6 +148,42 @@ document.addEventListener('DOMContentLoaded', () => {
         inputPatente.addEventListener('input', function() {
             this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
         });
+
+        inputPatente.addEventListener('blur', async function() {
+            const patenteBuscada = this.value.trim();
+            
+            // Solo buscamos si tiene un largo razonable para una patente argentina (6 o 7 caracteres)
+            if (patenteBuscada.length >= 6) {
+                try {
+                    const response = await fetch(`/api/vehiculos/historico/${patenteBuscada}`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const selectMarca = document.getElementById('ing-marca');
+                        const inputModelo = document.getElementById('ing-modelo');
+
+                        if (selectMarca) {
+                            const opcionExiste = Array.from(selectMarca.options).some(opt => opt.value === data.Marca);
+                            
+                            if (opcionExiste) {
+                                selectMarca.value = data.Marca;
+                            } else {
+                                selectMarca.value = 'Otra'; 
+                            }
+                        }
+
+                        if (inputModelo) {
+                            inputModelo.value = data.Modelo;
+                            if (selectMarca && selectMarca.value === 'Otra') {
+                                inputModelo.placeholder = "Ej: Ferrari Enzo";
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error al intentar autocompletar:', error);
+                }
+            }
+        });
     }
 
     const inputDni = document.getElementById('ing-dni');
@@ -263,14 +299,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const motivo = document.getElementById('baja-motivo').value;
             const retiranteNombre = document.getElementById('baja-nombre').value;
             const retiranteDni = document.getElementById('baja-dni').value;
-            const esTitular = document.getElementById('es-titular').checked;
             const resolucion = document.getElementById('baja-resolucion').value;
 
             try {
                 const response = await fetch('/api/vehiculos/retiro', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion, idUsuario: usuarioLogueado.id })
+                    body: JSON.stringify({ patente, motivo, retiranteNombre, retiranteDni, resolucion, idUsuario: usuarioLogueado.id })
                 });
 
                 if (response.ok) {
@@ -566,16 +601,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //Modal Dinamico de retiro
     const bajaMotivo = document.getElementById('baja-motivo');
-    const grupoTitular = document.getElementById('grupo-titular');
     const labelRetirante = document.getElementById('label-retirante');
     const labelResolucion = document.getElementById('label-resolucion');
-    const checkboxTitular = document.getElementById('es-titular');
 
     if (bajaMotivo) {
         bajaMotivo.addEventListener('change', (e) => {
             if (e.target.value === 'venta') {
-                grupoTitular.style.display = 'none';
-                checkboxTitular.checked = false;
                 labelRetirante.textContent = 'Nombre del comprador';
                 labelResolucion.textContent = 'Nº de Expediente / Acta de Remate';
             } else {
@@ -631,6 +662,40 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                         } else {
                             galeria.innerHTML = '<p style="color:#7f8c8d; font-style: italic;">No hay fotografías registradas.</p>';
+                        }
+
+                        const contenedorHistorial = document.getElementById('det-historial');
+                        contenedorHistorial.innerHTML = ''; 
+                        
+                        if (v.historial && v.historial.length > 0) {
+                            v.historial.forEach(reg => {
+                                const fObj = new Date(reg.Fecha_Transaccion);
+                                const fechaStr = fObj.toLocaleString('es-AR', { timeZone: 'UTC' });
+                                
+                                let color = '#7f8c8d';
+                                if (reg.Evento.includes('Ingreso')) color = '#27ae60';
+                                if (reg.Evento.includes('Remate')) color = '#f39c12';
+                                if (reg.Evento.includes('Baja')) color = '#e74c3c';
+
+                                const divLog = document.createElement('div');
+                                divLog.style.borderBottom = '1px solid #ecf0f1';
+                                divLog.style.paddingBottom = '8px';
+                                divLog.style.marginBottom = '8px';
+                                
+                                divLog.innerHTML = `
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                        <strong style="color: ${color};">${reg.Evento}</strong>
+                                        <span style="color: #95a5a6; font-size: 12px;">${fechaStr}</span>
+                                    </div>
+                                    <div style="color: #34495e;">
+                                        <strong>Operario:</strong> ${reg.Usuario} | <strong>Depósito:</strong> ${reg.NombreDeposito}
+                                    </div>
+                                    ${reg.Detalle_Extra ? `<div style="margin-top: 4px; font-style: italic; color: #7f8c8d;">"${reg.Detalle_Extra}"</div>` : ''}
+                                `;
+                                contenedorHistorial.appendChild(divLog);
+                            });
+                        } else {
+                            contenedorHistorial.innerHTML = '<p style="color:#7f8c8d; font-style: italic; text-align: center;">No hay registros previos para esta patente.</p>';
                         }
 
                         openModal('modal-detalle');
@@ -691,9 +756,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const fechaFormateada = fechaObj.toLocaleString('es-AR', { timeZone: 'UTC' });
                     
                     let colorEvento = 'black';
-                    if (r.Evento.includes('Ingreso')) colorEvento = '#27ae60';
-                    if (r.Evento.includes('Baja')) colorEvento = '#e74c3c';
-                    if (r.Evento.includes('Remate')) colorEvento = '#f39c12';
+                    if (r.Evento.includes('Ingreso')) colorEvento = '#27ae60'; 
+                    if (r.Evento.includes('Remate')) colorEvento = '#f39c12';  
+                    if (r.Evento.includes('Baja')) colorEvento = '#e74c3c';    
 
                     const tr = document.createElement('tr');
                     

@@ -251,10 +251,6 @@
                 <div class="input-group"><label id="label-retirante">Nombre de quien retira</label><input type="text" id="baja-nombre" required></div>
                 <div class="input-group"><label>DNI</label><input type="text" id="baja-dni" required maxlength="8" pattern="\d*"></div>
                 
-                <div class="checkbox-group" id="grupo-titular">
-                    <input type="checkbox" id="es-titular">
-                    <label for="es-titular">¿Es el titular del vehículo?</label>
-                </div>
                 
                 <div class="input-group"><label id="label-resolucion">Resolución de la infracción (Nº de comprobante)</label><input type="text" id="baja-resolucion" required></div>
                 <button type="submit" class="btn-primary" style="background-color: #e74c3c;">Confirmar Baja Definitiva</button>
@@ -315,6 +311,10 @@
             <h3>Fotografías</h3>
             <div id="det-galeria" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #ccc;">
                 <!-- Las fotos se inyectan acá -->
+            </div>
+            <h3>Historial de Movimientos</h3>
+            <div id="det-historial" style="max-height: 200px; overflow-y: auto; border: 1px solid #bdc3c7; border-radius: 4px; padding: 10px; background-color: #f9f9f9; font-size: 13px;">
+                <!-- Los logs se inyectan acá -->
             </div>
         </div>
     </div>
