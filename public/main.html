@@ -13,7 +13,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>SGVI</h2>
-                <p id="user-info">Operario - Depósito Centro</p>
+                <p id="user-info">Cargando depósito...</p>
             </div>
             <nav class="sidebar-nav">
                 <!-- Vista General: Dashboard y Lista -->
@@ -23,8 +23,12 @@
 
                 <button class="nav-btn" data-target="vista-admin-usuarios">Administración</button>
             </nav>
-            <div class="sidebar-footer">
-                <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
+            <div class="sidebar-footer" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; border-top: 1px solid #34495e;">
+                <div style="font-size: 14px; overflow: hidden;">
+                    <span id="footer-user-name" style="font-weight: bold; color: #ecf0f1; display: block; white-space: nowrap; text-overflow: ellipsis;">Usuario</span>
+                    <span id="footer-user-rol" style="font-size: 12px; color: #bdc3c7; text-transform: capitalize;">Rol</span>
+                </div>
+                <button id="btn-logout" class="btn-secondary" style="padding: 6px 12px; font-size: 12px; background-color: #e74c3c; border: none; color: white;">Salir</button>
             </div>
         </aside>
 
@@ -112,36 +116,26 @@
 
             <!-- VISTA 2: Historial de Transacciones (RF04) -->
             <section id="vista-historial" class="view-section hidden">
-                <h2>Historial de Transacciones</h2>
-                <p style="color: #7f8c8d; margin-bottom: 20px;">Bitácora cronológica de movimientos del depósito actual.</p>
+                <div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 id="titulo-historial">Historial de Transacciones</h2>
+                        <p style="color: #7f8c8d; margin-top: 5px;">Bitácora cronológica de movimientos.</p>
+                    </div>
+                    <div style="background: #ecf0f1; padding: 10px 15px; border-radius: 6px; border: 1px solid #bdc3c7; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="check-historial-todos" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="check-historial-todos" style="margin: 0; font-weight: bold; cursor: pointer; color: #2c3e50;">Mostrar todos los depósitos</label>
+                    </div>
+                </div>
                 
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
-                            <tr>
-                                <th>Fecha y Hora</th>
-                                <th>Patente</th>
-                                <th>Evento</th>
-                                <th>Usuario</th>
-                                <th>Detalles</th>
+                            <tr id="thead-historial">
+                                <!-- Se llena dinámicamente con JS -->
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Filas de ejemplo -->
-                            <tr>
-                                <td>06/09/2026 14:30</td>
-                                <td><strong>AB123CD</strong></td>
-                                <td><span style="color: #27ae60; font-weight: bold;">Ingreso de Vehículo</span></td>
-                                <td>Operario_01</td>
-                                <td>Incautación por alcoholemia.</td>
-                            </tr>
-                            <tr>
-                                <td>05/09/2026 10:15</td>
-                                <td><strong>XYZ987</strong></td>
-                                <td><span style="color: #e74c3c; font-weight: bold;">Baja por Retiro</span></td>
-                                <td>Operario_02</td>
-                                <td>Retirado por titular. Pago de infracción confirmado.</td>
-                            </tr>
+                            <!-- Las filas van acá -->
                         </tbody>
                     </table>
                 </div>
@@ -240,9 +234,9 @@
         <div class="modal-content">
             <button class="close-btn">&times;</button>
             <h2>Registrar Salida de Vehículo</h2>
-            <div class="input-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="text" id="baja-patente-busqueda" placeholder="Patente del vehículo...">
-                <button type="button" class="btn-secondary" style="width: auto;">Verificar</button>
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label>Patente del vehículo a dar de baja</label>
+                <input type="text" id="baja-patente-busqueda" placeholder="Ej: AB123CD" required style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
             </div>
             
             <form id="form-retiro">

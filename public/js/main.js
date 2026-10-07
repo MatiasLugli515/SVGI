@@ -20,11 +20,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const userInfo = document.getElementById('user-info');
-    if (userInfo) {
-        const rolFormateado = usuarioLogueado.rol.charAt(0).toUpperCase() + usuarioLogueado.rol.slice(1);
-        const depositoSeleccionado = localStorage.getItem('sgvi_deposito_nombre') || 'Depósito no asignado';
-        userInfo.textContent = `${rolFormateado} - ${depositoSeleccionado}`;
+    const headerInfo = document.getElementById('user-info');
+    const footerUserName = document.getElementById('footer-user-name');
+    const footerUserRol = document.getElementById('footer-user-rol');
+    
+    const depositoSeleccionado = localStorage.getItem('sgvi_deposito_nombre') || 'Depósito no asignado';
+
+    if (headerInfo) {
+        headerInfo.textContent = depositoSeleccionado;
+    }
+
+    if (footerUserName && footerUserRol) {
+        footerUserName.textContent = usuarioLogueado.nombre; 
+        footerUserRol.textContent = usuarioLogueado.rol;
     }
 
     // Ocultamos el botón de Administración si es operario
@@ -60,6 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (targetId === 'vista-admin-usuarios') {
                 cargarListaUsuarios();
             }
+            else if (targetId === 'vista-historial') { 
+                cargarHistorial();
+            }
+            
         });
     });
 
@@ -204,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('motivo', motivo);
             formData.append('fecha', fecha);
             formData.append('idDeposito', idDeposito);
+            formData.append('idUsuario', usuarioLogueado.id);
 
             const inputFotos = document.getElementById('ing-fotos');
             if (inputFotos && inputFotos.files.length > 0) {
@@ -257,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/api/vehiculos/retiro', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion })
+                    body: JSON.stringify({ patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion, idUsuario: usuarioLogueado.id })
                 });
 
                 if (response.ok) {
@@ -433,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const res = await fetch(`/api/vehiculos/${patente}/estado`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ nuevoEstado })
+                        body: JSON.stringify({ nuevoEstado, idUsuario: usuarioLogueado.id })
                     });
 
                     const data = await res.json();
@@ -629,6 +642,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+    }
+
+    async function cargarHistorial() {
+        const tbody = document.querySelector('#vista-historial .data-table tbody');
+        const theadTr = document.getElementById('thead-historial');
+        const tituloHistorial = document.getElementById('titulo-historial');
+        const checkTodos = document.getElementById('check-historial-todos');
+        
+        if (!tbody) return;
+
+        const idDepositoActual = localStorage.getItem('sgvi_deposito_id');
+        const nombreDepositoActual = localStorage.getItem('sgvi_deposito_nombre') || 'Depósito actual';
+        const mostrarTodos = checkTodos && checkTodos.checked;
+        const paramFiltro = mostrarTodos ? 0 : idDepositoActual;
+
+        if (tituloHistorial) {
+            tituloHistorial.textContent = mostrarTodos 
+                ? 'Historial - Todos los Depósitos' 
+                : `Historial - ${nombreDepositoActual}`;
+        }
+
+        theadTr.innerHTML = `
+            <th>Fecha y Hora</th>
+            <th>Patente</th>
+            <th>Evento</th>
+            <th>Usuario</th>
+            ${mostrarTodos ? '<th>Depósito</th>' : ''}
+            <th>Detalles</th>
+        `;
+
+        tbody.innerHTML = `<tr><td colspan="${mostrarTodos ? 6 : 5}" style="text-align:center;">Cargando bitácora de auditoría...</td></tr>`;
+
+        try {
+            const response = await fetch(`/api/historial/${paramFiltro}`);
+            
+            if (response.ok) {
+                const registros = await response.json();
+                tbody.innerHTML = ''; 
+
+                if (registros.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${mostrarTodos ? 6 : 5}" style="text-align:center;">No hay transacciones registradas.</td></tr>`;
+                    return;
+                }
+
+                registros.forEach(r => {
+                    const fechaObj = new Date(r.Fecha_Transaccion);
+                    const fechaFormateada = fechaObj.toLocaleString('es-AR', { timeZone: 'UTC' });
+                    
+                    let colorEvento = 'black';
+                    if (r.Evento.includes('Ingreso')) colorEvento = '#27ae60';
+                    if (r.Evento.includes('Baja')) colorEvento = '#e74c3c';
+                    if (r.Evento.includes('Remate')) colorEvento = '#f39c12';
+
+                    const tr = document.createElement('tr');
+                    
+                    tr.innerHTML = `
+                        <td>${fechaFormateada}</td>
+                        <td><strong>${r.Patente}</strong></td>
+                        <td><span style="color: ${colorEvento}; font-weight: bold;">${r.Evento}</span></td>
+                        <td>${r.Usuario}</td>
+                        ${mostrarTodos ? `<td><strong>${r.NombreDeposito}</strong></td>` : ''}
+                        <td>${r.Detalle_Extra || '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="${mostrarTodos ? 6 : 5}" style="text-align:center; color:red;">Error al cargar la bitácora.</td></tr>`;
+        }
+    }
+
+    const checkHistorialTodos = document.getElementById('check-historial-todos');
+    if (checkHistorialTodos) {
+        checkHistorialTodos.addEventListener('change', cargarHistorial);
     }
     
     // ==========================================

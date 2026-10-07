@@ -211,7 +211,7 @@ app.delete('/api/usuarios/:id', async (req, res) => {
 });
 
 app.post('/api/vehiculos/add', upload.array('fotos', 5), async (req, res) => {
-    const { patente, marca, modelo,nombreTitular,dniTitular, descripcion, motivo, fecha, idDeposito } = req.body;
+    const { patente, marca, modelo,nombreTitular,dniTitular, descripcion, motivo, fecha, idDeposito, idUsuario } = req.body;
 
     try {
         let pool = await sql.connect(dbConfig);
@@ -254,6 +254,14 @@ app.post('/api/vehiculos/add', upload.array('fotos', 5), async (req, res) => {
                     .query('INSERT INTO Fotos_Vehiculo (ID_Vehiculo, Ruta_Archivo) VALUES (@idVehiculo, @ruta)');
             }
         }
+
+        await pool.request()
+            .input('idVeh', sql.Int, idNuevoVehiculo)
+            .input('idUsu', sql.Int, idUsuario)
+            .input('idDep', sql.Int, idDeposito)
+            .input('evento', sql.VarChar, 'Ingreso de Vehículo')
+            .input('detalle', sql.Text, `Motivo original: ${motivo}`)
+            .query('INSERT INTO Historial_Vehiculo (ID_Vehiculo, ID_Usuario, ID_Deposito, Fecha_Transaccion, Evento, Detalle_Extra) VALUES (@idVeh, @idUsu, @idDep, GETDATE(), @evento, @detalle)');
         
         res.status(201).json({ message: 'Vehículo ingresado con éxito' });
     } catch (err) {
@@ -299,15 +307,32 @@ app.get('/api/vehiculos/detalle/:patente', async (req, res) => {
 
 app.put('/api/vehiculos/:patente/estado', async (req, res) => {
     const patente = req.params.patente;
-    const { nuevoEstado } = req.body;
+    const { nuevoEstado,idUsuario } = req.body;
 
     try {
         let pool = await sql.connect(dbConfig);
+
+        const infoVehiculo = await pool.request()
+            .input('patente', sql.VarChar, patente)
+            .query("SELECT ID_Vehiculo, ID_Deposito FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
+
+        if (infoVehiculo.recordset.length === 0) return res.status(404).json({ message: 'Vehículo no encontrado.' });
+
+        const { ID_Vehiculo, ID_Deposito } = infoVehiculo.recordset[0];
+
+
         
         await pool.request()
             .input('estado', sql.VarChar, nuevoEstado)
             .input('patente', sql.VarChar, patente)
             .query('UPDATE Vehiculos SET Estado_Actual = @estado WHERE Patente = @patente');
+
+        await pool.request()
+            .input('idVeh', sql.Int, ID_Vehiculo)
+            .input('idUsu', sql.Int, idUsuario)
+            .input('idDep', sql.Int, ID_Deposito)
+            .input('evento', sql.VarChar, `Cambio a ${nuevoEstado}`)
+            .query("INSERT INTO Historial_Vehiculo (ID_Vehiculo, ID_Usuario, ID_Deposito, Fecha_Transaccion, Evento) VALUES (@idVeh, @idUsu, @idDep, GETDATE(), @evento)");
 
         res.status(200).json({ message: 'Estado actualizado correctamente.' });
     } catch (err) {
@@ -366,28 +391,81 @@ app.get('/api/depositos/:id/stats', async (req, res) => {
 });
 
 app.post('/api/vehiculos/retiro', async (req, res) => {
-    const { patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion } = req.body;
+    const { patente, motivo, retiranteNombre, retiranteDni, esTitular, resolucion, idUsuario } = req.body;
 
     try {
         let pool = await sql.connect(dbConfig);
         
         const checkVehiculo = await pool.request()
             .input('patente', sql.VarChar, patente)
-            .query("SELECT Patente, Estado_Actual FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
+            .query("SELECT ID_Vehiculo, ID_Deposito FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
+
             
         if (checkVehiculo.recordset.length === 0) {
             return res.status(404).json({ message: 'Vehículo no encontrado o ya fue dado de baja previamente.' });
         }
+
+        const { ID_Vehiculo, ID_Deposito } = checkVehiculo.recordset[0];
+        
         await pool.request()
             .input('patente', sql.VarChar, patente)
             .input('estado', sql.VarChar, 'Baja')
             .query("UPDATE Vehiculos SET Estado_Actual = @estado WHERE Patente = @patente");
+
+
+        const nombreEvento = motivo === 'venta' ? 'Baja por Venta/Remate' : 'Baja por Devolución';
+        const detalleExtra = `Retirado por: ${retiranteNombre} (DNI: ${retiranteDni}). Resolución/Expediente: ${resolucion}`;
+
+        await pool.request()
+            .input('idVeh', sql.Int, ID_Vehiculo)
+            .input('idUsu', sql.Int, idUsuario)
+            .input('idDep', sql.Int, ID_Deposito)
+            .input('evento', sql.VarChar, nombreEvento)
+            .input('detalle', sql.Text, detalleExtra)
+            .query("INSERT INTO Historial_Vehiculo (ID_Vehiculo, ID_Usuario, ID_Deposito, Fecha_Transaccion, Evento, Detalle_Extra) VALUES (@idVeh, @idUsu, @idDep, GETDATE(), @evento, @detalle)");
 
         res.status(200).json({ message: 'Vehículo dado de baja exitosamente.' });
 
     } catch (err) {
         console.error('Error al registrar la baja:', err);
         res.status(500).json({ message: 'Error interno del servidor al procesar la salida.' });
+    }
+});
+
+app.get('/api/historial/:idDeposito', async (req, res) => {
+    const idDeposito = req.params.idDeposito;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        let result;
+
+        const baseQuery = `
+            SELECT 
+                h.Fecha_Transaccion, 
+                v.Patente, 
+                h.Evento, 
+                u.Nombre AS Usuario, 
+                h.Detalle_Extra,
+                d.Nombre AS NombreDeposito
+            FROM Historial_Vehiculo h
+            JOIN Vehiculos v ON h.ID_Vehiculo = v.ID_Vehiculo
+            JOIN Usuarios u ON h.ID_Usuario = u.ID_Usuario
+            JOIN Depositos d ON h.ID_Deposito = d.ID_Deposito
+        `;
+
+        if (idDeposito == 0) {
+            result = await pool.request()
+                .query(baseQuery + ` ORDER BY h.Fecha_Transaccion DESC`);
+        } else {
+            result = await pool.request()
+                .input('idDep', sql.Int, idDeposito)
+                .query(baseQuery + ` WHERE h.ID_Deposito = @idDep ORDER BY h.Fecha_Transaccion DESC`);
+        }
+            
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al cargar historial:', err);
+        res.status(500).json({ message: 'Error interno al cargar la bitácora.' });
     }
 });
 // Rutas de las vistas
