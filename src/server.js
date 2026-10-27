@@ -432,6 +432,33 @@ app.post('/api/vehiculos/retiro', async (req, res) => {
             .query("UPDATE Vehiculos SET Estado_Actual = @estado WHERE Patente = @patente");
 
 
+        const fotosResult = await pool.request()
+            .input('idVehFotos', sql.Int, ID_Vehiculo)
+            .query("SELECT Ruta_Archivo FROM Fotos_Vehiculo WHERE ID_Vehiculo = @idVehFotos");
+
+        if (fotosResult.recordset.length > 0) {
+            fotosResult.recordset.forEach(row => {
+                const rutaGuardada = Object.values(row)[0];
+                if (rutaGuardada) {
+                    const nombreArchivo = path.basename(rutaGuardada);
+                    const rutaFisica = path.join(uploadDir, nombreArchivo);
+                    
+                    if (fs.existsSync(rutaFisica)) {
+                        try {
+                            fs.unlinkSync(rutaFisica);
+                        } catch (unlinkErr) {
+                            console.error(`No se pudo borrar el archivo físico ${rutaFisica}:`, unlinkErr);
+                        }
+                    }
+                }
+            });
+
+            // B. Limpiamos los registros de la tabla Fotos_Vehiculo para este auto
+            await pool.request()
+                .input('idVehDelete', sql.Int, ID_Vehiculo)
+                .query("DELETE FROM Fotos_Vehiculo WHERE ID_Vehiculo = @idVehDelete");
+        }
+
         let nombreEvento = '';
         let detalleExtra = '';
 
@@ -516,6 +543,135 @@ app.get('/api/vehiculos/historico/:patente', async (req, res) => {
     } catch (err) {
         console.error('Error al buscar histórico de vehículo:', err);
         res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+app.get('/api/depositos', async (req, res) => {
+    try {
+        let pool = await sql.connect(dbConfig);
+        const result = await pool.request().query('SELECT ID_Deposito, Nombre FROM Depositos');
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener depósitos:', err);
+        res.status(500).json({ message: 'Error al cargar la lista de depósitos.' });
+    }
+});
+
+app.get('/api/vehiculos/remate/:idDeposito', async (req, res) => {
+    const idDeposito = req.params.idDeposito;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+        let result;
+
+        const baseQuery = `
+            SELECT 
+                v.ID_Vehiculo,
+                v.Patente,
+                v.Marca,
+                v.Modelo,
+                v.Nombre_Titular,
+                v.DNI_Titular,
+                v.Descripcion_Danos,
+                v.Motivo_Incautacion,
+                v.Fecha_Ingreso,
+                v.Estado_Actual,
+                d.Nombre AS Nombre_Deposito
+            FROM Vehiculos v
+            JOIN Depositos d ON v.ID_Deposito = d.ID_Deposito
+            WHERE v.Estado_Actual = 'Remate'
+        `;
+
+        // Seguimos la misma convención que usaste en Historial: 0 = Todos los depósitos
+        if (idDeposito == 0) {
+            result = await pool.request()
+                .query(baseQuery + ` ORDER BY d.Nombre ASC, v.Fecha_Ingreso ASC`);
+        } else {
+            result = await pool.request()
+                .input('idDep', sql.Int, idDeposito)
+                .query(baseQuery + ` AND v.ID_Deposito = @idDep ORDER BY v.Fecha_Ingreso ASC`);
+        }
+
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al exportar vehículos en remate:', err);
+        res.status(500).json({ message: 'Error interno al obtener el listado de remates.' });
+    }
+});
+
+// Endpoint para actualizar descripción de daños y agregar fotos
+app.put('/api/vehiculos/actualizar/:patente', upload.array('fotos', 5), async (req, res) => {
+    const patente = req.params.patente;
+    const { descripcion, idUsuario, fotosAEliminar } = req.body;
+
+    try {
+        let pool = await sql.connect(dbConfig);
+
+        // 1. Buscamos el vehículo activo
+        const checkVehiculo = await pool.request()
+            .input('patente', sql.VarChar, patente)
+            .query("SELECT ID_Vehiculo, ID_Deposito FROM Vehiculos WHERE Patente = @patente AND Estado_Actual != 'Baja'");
+
+        if (checkVehiculo.recordset.length === 0) {
+            return res.status(404).json({ message: 'Vehículo no encontrado o dado de baja.' });
+        }
+
+        const { ID_Vehiculo, ID_Deposito } = checkVehiculo.recordset[0];
+
+        await pool.request()
+            .input('desc', sql.Text, descripcion)
+            .input('idVeh', sql.Int, ID_Vehiculo)
+            .query("UPDATE Vehiculos SET Descripcion_Danos = @desc WHERE ID_Vehiculo = @idVeh");
+
+        let cantidadBorradas = 0;
+        if (fotosAEliminar) {
+            const rutasBorradas = JSON.parse(fotosAEliminar);
+            for (let ruta of rutasBorradas) {
+                const nombreArchivo = path.basename(ruta);
+                const rutaFisica = path.join(uploadDir, nombreArchivo);
+                
+                if (fs.existsSync(rutaFisica)) {
+                    fs.unlinkSync(rutaFisica); // Borramos el archivo del disco
+                }
+
+                await pool.request()
+                    .input('ruta', sql.VarChar, ruta)
+                    .input('idVeh', sql.Int, ID_Vehiculo)
+                    .query('DELETE FROM Fotos_Vehiculo WHERE Ruta_Archivo = @ruta AND ID_Vehiculo = @idVeh');
+                
+                cantidadBorradas++;
+            }
+        }
+
+        let fotosAgregadas = 0;
+        if (req.files && req.files.length > 0) {
+            for (let i = 0; i < req.files.length; i++) {
+                const rutaDestino = `/uploads/${req.files[i].filename}`;
+                await pool.request()
+                    .input('idVeh', sql.Int, ID_Vehiculo)
+                    .input('ruta', sql.VarChar, rutaDestino)
+                    .query('INSERT INTO Fotos_Vehiculo (ID_Vehiculo, Ruta_Archivo) VALUES (@idVeh, @ruta)');
+                fotosAgregadas++;
+            }
+        }
+
+        let detallesAcciones = ['Se actualizó la descripción de daños.'];
+        if (fotosAgregadas > 0) detallesAcciones.push(`Se agregaron ${fotosAgregadas} foto(s).`);
+        if (cantidadBorradas > 0) detallesAcciones.push(`Se eliminaron ${cantidadBorradas} foto(s).`);
+        const detalleExtra = detallesAcciones.join(' ');
+
+        await pool.request()
+            .input('idVeh', sql.Int, ID_Vehiculo)
+            .input('idUsu', sql.Int, idUsuario)
+            .input('idDep', sql.Int, ID_Deposito)
+            .input('evento', sql.VarChar, 'Actualización de Estado/Daños')
+            .input('detalle', sql.Text, detalleExtra)
+            .query("INSERT INTO Historial_Vehiculo (ID_Vehiculo, ID_Usuario, ID_Deposito, Fecha_Transaccion, Evento, Detalle_Extra) VALUES (@idVeh, @idUsu, @idDep, GETDATE(), @evento, @detalle)");
+
+        res.status(200).json({ message: 'Detalles actualizados correctamente.' });
+    } catch (err) {
+        console.error('Error al actualizar detalles:', err);
+        res.status(500).json({ message: 'Error interno al actualizar el vehículo.' });
     }
 });
 // Rutas de las vistas

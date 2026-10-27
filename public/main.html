@@ -266,7 +266,9 @@
             <form id="form-exportar">
                 <div class="input-group">
                     <label>Filtrar por Depósito</label>
-                    <select><option>Todos los depósitos</option></select>
+                    <select id="exportar-deposito" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; width: 100%;">
+                        <option>Todos los depósitos</option>
+                    </select>
                 </div>
                 <button type="submit" class="btn-primary">Generar y Descargar CSV</button>
             </form>
@@ -312,10 +314,43 @@
             <div id="det-galeria" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #ccc;">
                 <!-- Las fotos se inyectan acá -->
             </div>
+            <div style="text-align: right; margin-bottom: 15px;">
+                <button id="btn-abrir-actualizar" class="btn-primary" style="background-color: #2980b9;">Actualizar Daños y Fotos</button>
+            </div>
             <h3>Historial de Movimientos</h3>
             <div id="det-historial" style="max-height: 200px; overflow-y: auto; border: 1px solid #bdc3c7; border-radius: 4px; padding: 10px; background-color: #f9f9f9; font-size: 13px;">
                 <!-- Los logs se inyectan acá -->
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Actualizar Estado Físico -->
+    <div id="modal-actualizar" class="modal hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <button class="close-btn">&times;</button>
+            <h2>Actualizar Estado Físico</h2>
+            <form id="form-actualizar">
+                <input type="hidden" id="act-patente">
+                
+                <div class="input-group">
+                    <label>Descripción de daños o estado físico actual</label>
+                    <textarea id="act-desc" required style="min-height: 100px;"></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Fotografías actuales (Haz clic en la cruz para eliminar)</label>
+                    <div id="act-galeria" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; margin-bottom: 15px; min-height: 80px;">
+                        <!-- Las fotos editables se inyectan acá -->
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Agregar nuevas fotografías (Opcional, Máx 5)</label>
+                    <input type="file" id="act-fotos" multiple accept="image/*">
+                </div>
+                
+                <button type="submit" class="btn-primary">Guardar Cambios</button>
+            </form>
         </div>
     </div>
     

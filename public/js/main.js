@@ -101,9 +101,119 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnIngreso) btnIngreso.addEventListener('click', () => openModal('modal-ingreso'));
     if (btnRetiro) btnRetiro.addEventListener('click', () => openModal('modal-retiro'));
-    if (btnExportar) btnExportar.addEventListener('click', () => openModal('modal-exportar'));
     if (btnRegistro) btnRegistro.addEventListener('click', () => openModal('modal-registro'));
     if (btnDeposito) btnDeposito.addEventListener('click', () => openModal('modal-deposito'));
+
+    const selectExportarDeposito = document.getElementById('exportar-deposito');
+    if (btnExportar) {
+        btnExportar.addEventListener('click', async () => {
+            if (selectExportarDeposito) {
+                try {
+                    const res = await fetch('/api/depositos');
+                    if (res.ok) {
+                        const depositos = await res.json();
+                        selectExportarDeposito.innerHTML = '<option value="0">Todos los depósitos</option>';
+                        const idActual = localStorage.getItem('sgvi_deposito_id');
+                        
+                        depositos.forEach(d => {
+                            // Dejamos preseleccionado por comodidad el depósito donde está trabajando
+                            const selected = (d.ID_Deposito == idActual) ? 'selected' : '';
+                            selectExportarDeposito.innerHTML += `<option value="${d.ID_Deposito}" ${selected}>${d.Nombre}</option>`;
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error al cargar depósitos en el modal:', err);
+                }
+            }
+            openModal('modal-exportar');
+        });
+    }
+
+    const formExportar = document.getElementById('form-exportar');
+    if (formExportar) {
+        formExportar.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const idDepositoFiltro = selectExportarDeposito ? selectExportarDeposito.value : 0;
+
+            try {
+                const response = await fetch(`/api/vehiculos/remate/${idDepositoFiltro}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(`Error: ${error.message}`);
+                    return;
+                }
+
+                const vehiculos = await response.json();
+
+                if (vehiculos.length === 0) {
+                    alert('No hay vehículos en estado "Enviado a Remate" para el filtro seleccionado.');
+                    return;
+                }
+
+                const encabezados = [
+                    'ID Vehiculo',
+                    'Patente',
+                    'Marca',
+                    'Modelo',
+                    'Nombre del Titular',
+                    'DNI del Titular',
+                    'Fecha de Ingreso',
+                    'Motivo de Incautacion',
+                    'Descripcion / Danos',
+                    'Deposito Actual',
+                    'Estado'
+                ];
+
+                const escaparCSV = (texto) => {
+                    if (texto === null || texto === undefined) return '""';
+                    const limpio = String(texto).replace(/"/g, '""').replace(/\r?\n|\r/g, ' ');
+                    return `"${limpio}"`;
+                };
+
+                const filasCSV = vehiculos.map(v => {
+                    const fechaStr = new Date(v.Fecha_Ingreso).toLocaleDateString('es-AR', { timeZone: 'UTC' });
+                    const marcaReal = v.Marca === 'Otra' ? 'Otra (Especificada en modelo)' : v.Marca;
+
+                    return [
+                        v.ID_Vehiculo,
+                        escaparCSV(v.Patente),
+                        escaparCSV(marcaReal),
+                        escaparCSV(v.Modelo),
+                        escaparCSV(v.Nombre_Titular),
+                        escaparCSV(v.DNI_Titular),
+                        escaparCSV(fechaStr),
+                        escaparCSV(v.Motivo_Incautacion),
+                        escaparCSV(v.Descripcion_Danos),
+                        escaparCSV(v.Nombre_Deposito),
+                        escaparCSV(v.Estado_Actual)
+                    ].join(';');
+                });
+
+                const contenidoCSV = '\uFEFF' + [encabezados.join(';'), ...filasCSV].join('\r\n');
+
+                const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                const fechaHoy = new Date().toISOString().slice(0, 10);
+                link.href = url;
+                link.setAttribute('download', `Listado_Remates_SGVI_${fechaHoy}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                closeModal(document.getElementById('modal-exportar'));
+
+            } catch (error) {
+                console.error('Error al generar el CSV:', error);
+                alert('Hubo un problema de conexión al intentar generar el archivo.');
+            }
+        });
+    }
 
     // Configuración para cerrar modales (cruz y fondo oscuro)
     document.querySelectorAll('.modal').forEach(modal => {
@@ -647,15 +757,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('det-motivo').textContent = v.Motivo_Incautacion || 'N/A';
                         document.getElementById('det-desc').textContent = v.Descripcion_Danos || 'Sin descripción';
 
+                        const btnAbrirAct = document.getElementById('btn-abrir-actualizar');
+                        if (btnAbrirAct) {
+                            btnAbrirAct.setAttribute('data-patente', patente);
+                            btnAbrirAct.setAttribute('data-desc', v.Descripcion_Danos || '');
+                            // Guardamos las fotos como un texto JSON temporal
+                            btnAbrirAct.setAttribute('data-fotos', JSON.stringify(v.arrayFotos || []));
+                        }
+
                         const galeria = document.getElementById('det-galeria');
                         galeria.innerHTML = ''; 
                         
                         if (v.arrayFotos && v.arrayFotos.length > 0) {
                             v.arrayFotos.forEach(ruta => {
                                 const img = document.createElement('img');
-                                console.log('Cargando imagen:', ruta);
                                 img.src = ruta;
                                 img.style.height = '120px';
+                                img.style.width = '160px'; 
                                 img.style.borderRadius = '5px';
                                 img.style.objectFit = 'cover';
                                 galeria.appendChild(img);
@@ -782,7 +900,117 @@ document.addEventListener('DOMContentLoaded', () => {
     if (checkHistorialTodos) {
         checkHistorialTodos.addEventListener('change', cargarHistorial);
     }
-    
+
+    let fotosParaEliminarEnActualizacion = []; // Array temporal para encolar las fotos a borrar
+
+    const btnAbrirAct = document.getElementById('btn-abrir-actualizar');
+    if (btnAbrirAct) {
+        btnAbrirAct.addEventListener('click', (e) => {
+            fotosParaEliminarEnActualizacion = []; 
+
+            const patente = e.target.getAttribute('data-patente');
+            const desc = e.target.getAttribute('data-desc');
+            const fotosJSON = e.target.getAttribute('data-fotos');
+            
+            let fotos = [];
+            try { fotos = JSON.parse(fotosJSON); } catch(err) {}
+            
+            document.getElementById('act-patente').value = patente;
+            document.getElementById('act-desc').value = desc;
+            
+            const actGaleria = document.getElementById('act-galeria');
+            actGaleria.innerHTML = '';
+            
+            if (fotos.length > 0) {
+                fotos.forEach(ruta => {
+                    const contenedorFoto = document.createElement('div');
+                    contenedorFoto.style.position = 'relative';
+                    contenedorFoto.style.display = 'inline-block';
+                    contenedorFoto.style.flexShrink = '0';
+
+                    const img = document.createElement('img');
+                    img.src = ruta;
+                    img.style.height = '100px';
+                    img.style.width = '130px';
+                    img.style.borderRadius = '5px';
+                    img.style.objectFit = 'cover';
+
+                    const btnEliminar = document.createElement('button');
+                    btnEliminar.type = 'button'; 
+                    btnEliminar.innerHTML = '&times;';
+                    btnEliminar.title = 'Marcar para eliminar';
+                    btnEliminar.style.cssText = `
+                        position: absolute; top: 5px; right: 5px; background-color: rgba(231, 76, 60, 0.9);
+                        color: white; border: none; border-radius: 50%; width: 24px; height: 24px;
+                        font-size: 16px; line-height: 22px; text-align: center; cursor: pointer; font-weight: bold;
+                    `;
+
+                    btnEliminar.addEventListener('click', () => {
+                        contenedorFoto.style.display = 'none'; 
+                        fotosParaEliminarEnActualizacion.push(ruta); 
+                        const todasOcultas = Array.from(actGaleria.children).every(child => child.style.display === 'none');
+                        if (todasOcultas) {
+                            actGaleria.innerHTML += '<p style="color:#7f8c8d; font-style: italic; margin-top: 10px;" id="msg-sin-fotos">Has marcado todas las fotografías para eliminar.</p>';
+                        }
+                    });
+
+                    contenedorFoto.appendChild(img);
+                    contenedorFoto.appendChild(btnEliminar);
+                    actGaleria.appendChild(contenedorFoto);
+                });
+            } else {
+                actGaleria.innerHTML = '<p style="color:#7f8c8d; font-style: italic; margin-top: 10px;">No hay fotografías previas registradas.</p>';
+            }
+
+            closeModal(document.getElementById('modal-detalle')); 
+            openModal('modal-actualizar'); 
+        });
+    }
+
+    const formActualizar = document.getElementById('form-actualizar');
+    if (formActualizar) {
+        formActualizar.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const patente = document.getElementById('act-patente').value;
+            const descripcion = document.getElementById('act-desc').value;
+            
+            const formData = new FormData();
+            formData.append('descripcion', descripcion);
+            formData.append('idUsuario', usuarioLogueado.id);
+            
+            // Adjuntamos el array de fotos a eliminar como string JSON
+            if (fotosParaEliminarEnActualizacion.length > 0) {
+                formData.append('fotosAEliminar', JSON.stringify(fotosParaEliminarEnActualizacion));
+            }
+
+            const inputFotosAct = document.getElementById('act-fotos');
+            if (inputFotosAct && inputFotosAct.files.length > 0) {
+                for (let i = 0; i < inputFotosAct.files.length; i++) {
+                    formData.append('fotos', inputFotosAct.files[i]); 
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/vehiculos/actualizar/${patente}`, {
+                    method: 'PUT',
+                    body: formData 
+                });
+
+                if (response.ok) {
+                    alert('Estado físico y daños actualizados exitosamente.');
+                    closeModal(document.getElementById('modal-actualizar'));
+                    cargarHistorial();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.message}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Hubo un problema de conexión al actualizar los detalles.');
+            }
+        });
+    }
     // ==========================================
     // 3. CERRAR SESIÓN
     // ==========================================
